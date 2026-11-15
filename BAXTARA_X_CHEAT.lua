@@ -1,8 +1,8 @@
 --[[
-    BAXTARA X CHEAT  v3
+    BAXTARA X CHEAT  v4
     Developer : NUGI CENEL
     Credit    : @BAXTARA X CHEAT
-    Fix       : Center FOV/Aim (mobile safe), stable ESP, soft AC surface, anti-kick hop
+    Fix       : visible-only lock, full-body box, skeleton, all OFF default, ghost mode
 ]]
 
 local Players          = game:GetService("Players")
@@ -12,36 +12,33 @@ local TweenService     = game:GetService("TweenService")
 local Lighting         = game:GetService("Lighting")
 local Workspace        = game:GetService("Workspace")
 local CoreGui          = game:GetService("CoreGui")
-local GuiService       = game:GetService("GuiService")
 local TeleportService  = game:GetService("TeleportService")
-local HttpService      = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera      = Workspace.CurrentCamera
-
-local DrawingLib = Drawing
+local DrawingLib  = Drawing
 
 getgenv().BAXTARA = getgenv().BAXTARA or {}
 local B = getgenv().BAXTARA
 
+-- ALL DEFAULT OFF
 B.Settings = {
     Aim = {
         Enabled         = false,
-        VisibilityCheck = true,
+        VisibilityCheck = true,   -- only lock green / visible
         HeadAim         = true,
         BodyAim         = false,
         MultiBone       = false,
         FOVCircle       = true,
-        AimDistance     = 400,
+        AimDistance     = 500,
         AimLock         = false,
-        AimSmoothing    = 0.12,
+        AimSmoothing    = 0.18,
         AimPrediction   = false,
-        PredictionAmount= 0.08,
+        PredictionAmount= 0.1,
         DrawTargetLine  = false,
         TargetHighlight = false,
-        FOV             = 90,
+        FOV             = 100,
         TeamCheck       = true,
-        Silent          = false, -- if true, only sets camera when closer
     },
     ESP = {
         Enabled       = false,
@@ -53,11 +50,10 @@ B.Settings = {
         Skeleton      = false,
         VisibleCheck  = true,
         PriorityMark  = true,
-        WeaponESP     = false,
         StatusESP     = true,
         Radar         = false,
         Offscreen     = true,
-        MaxDistance   = 600,
+        MaxDistance   = 700,
         VisibleColor  = Color3.fromRGB(0, 255, 140),
         HiddenColor   = Color3.fromRGB(255, 70, 70),
         PriorityColor = Color3.fromRGB(255, 200, 0),
@@ -77,6 +73,7 @@ B.Settings = {
         GodMode        = false,
         HitboxExpand   = false,
         HitboxSize     = 6,
+        GhostMode      = false,
     },
     Visual = {
         FullBright       = false,
@@ -87,7 +84,7 @@ B.Settings = {
     Protect = {
         AntiKick         = true,
         AutoHopOnFlag    = true,
-        SoftCamera       = true, -- gentler aim to reduce flags
+        SoftCamera       = true,
     },
     UI = {
         Accent     = Color3.fromRGB(0, 255, 140),
@@ -100,10 +97,10 @@ B.Connections = {}
 B.Drawings = {}
 B.Highlights = {}
 B.ESPObjects = {}
-B.ObjectESP = {}
 B.CurrentTarget = nil
 B.LockedTarget = nil
 B.OriginalCollision = {}
+B.OriginalTransparency = {}
 B.OriginalWalkSpeed = 16
 B.OriginalJumpPower = 50
 B.OriginalJumpHeight = 7.2
@@ -124,18 +121,15 @@ local function CleanupAll()
     for _, pack in pairs(B.ESPObjects) do
         for k, d in pairs(pack) do
             if k == "Skel" then
-                for _, l in ipairs(d) do pcall(function() if l.Remove then l:Remove() end end) end
+                for _, l in ipairs(d) do pcall(function() if l and l.Remove then l:Remove() end end) end
             else
                 pcall(function() if d and d.Remove then d:Remove() end end)
             end
         end
     end
     B.ESPObjects = {}
-    for _, d in pairs(B.ObjectESP) do pcall(function() if d.Remove then d:Remove() end end) end
-    B.ObjectESP = {}
 end
 
--- ===================== UTILS =====================
 local function IsAlive(char)
     if not char then return false end
     local hum = char:FindFirstChildOfClass("Humanoid")
@@ -170,80 +164,58 @@ local function ScreenCenter()
     return Vector2.new(vp.X * 0.5, vp.Y * 0.5)
 end
 
-local function VisibleCheck(from, to, extra)
+local function IsVisible(from, to, char)
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
-    local ignore = {LocalPlayer.Character}
-    if extra then for _, o in ipairs(extra) do table.insert(ignore, o) end end
-    params.FilterDescendantsInstances = ignore
+    params.FilterDescendantsInstances = {LocalPlayer.Character, char}
     params.IgnoreWater = true
     return Workspace:Raycast(from, to - from, params) == nil
 end
 
--- ===================== ANTI-KICK / HOP =====================
+-- ===================== ANTI KICK =====================
 local function SafeHop()
     if B.Hopping then return end
     B.Hopping = true
-    pcall(function()
-        -- soft unload aggressive features first
-        B.Settings.Aim.Enabled = false
-        B.Settings.Brutal.Fly = false
-        B.Settings.Brutal.SpeedHack = false
-        B.Settings.Brutal.Noclip = false
-        B.Settings.Brutal.GodMode = false
-        CleanupAll()
-    end)
+    B.Settings.Aim.Enabled = false
+    B.Settings.Brutal.Fly = false
+    B.Settings.Brutal.SpeedHack = false
+    B.Settings.Brutal.Noclip = false
+    B.Settings.Brutal.GodMode = false
+    B.Settings.Brutal.GhostMode = false
     task.spawn(function()
-        task.wait(0.4)
-        pcall(function()
-            TeleportService:Teleport(game.PlaceId, LocalPlayer)
-        end)
-        -- fallback: rejoin same place
-        task.wait(2)
-        pcall(function()
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
-        end)
+        task.wait(0.3)
+        pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
         B.Hopping = false
     end)
 end
 
 local function WatchKick()
-    -- watch for common kick / timeout GUI text
     AddConn(CoreGui.DescendantAdded:Connect(function(obj)
         if not B.Settings.Protect.AntiKick then return end
         if obj:IsA("TextLabel") or obj:IsA("TextButton") then
             local t = (obj.Text or ""):lower()
             if t:find("suspicious") or t:find("timedout") or t:find("timeout")
             or t:find("kicked") or t:find("dikeluarkan") or t:find("code 2a")
-            or t:find("kode eror") or t:find("koneksi terputus") or t:find("extreme ping") then
-                if B.Settings.Protect.AutoHopOnFlag then
-                    SafeHop()
-                end
+            or t:find("koneksi terputus") or t:find("extreme ping") then
+                if B.Settings.Protect.AutoHopOnFlag then SafeHop() end
             end
-        end
-    end))
-
-    -- also catch error 267 style via LocalPlayer
-    AddConn(LocalPlayer.AncestryChanged:Connect(function()
-        if not LocalPlayer:IsDescendantOf(game) and B.Settings.Protect.AutoHopOnFlag then
-            -- already leaving, try hop on next join is handled by re-exec
         end
     end))
 end
 
--- ===================== AIM (CENTER BASED) =====================
+-- ===================== AIM =====================
 local FOVCircle, TargetLine
 
 local function MakeFOV()
     if FOVCircle then pcall(function() FOVCircle:Remove() end) end
     if not DrawingLib then return end
     FOVCircle = Drawing.new("Circle")
-    FOVCircle.Thickness = 1.4
+    FOVCircle.Thickness = 1.5
     FOVCircle.NumSides = 48
     FOVCircle.Radius = B.Settings.Aim.FOV
     FOVCircle.Filled = false
     FOVCircle.Color = B.Settings.UI.Accent
-    FOVCircle.Transparency = 0.6
+    FOVCircle.Transparency = 0.55
     FOVCircle.Visible = false
     B.Drawings.FOV = FOVCircle
 end
@@ -252,9 +224,9 @@ local function MakeLine()
     if TargetLine then pcall(function() TargetLine:Remove() end) end
     if not DrawingLib then return end
     TargetLine = Drawing.new("Line")
-    TargetLine.Thickness = 1.1
+    TargetLine.Thickness = 1.2
     TargetLine.Color = Color3.fromRGB(0, 255, 180)
-    TargetLine.Transparency = 0.5
+    TargetLine.Transparency = 0.45
     TargetLine.Visible = false
     B.Drawings.TargetLine = TargetLine
 end
@@ -275,6 +247,7 @@ local function GetAimPart(char)
     return GetHead(char) or GetRoot(char)
 end
 
+-- ONLY returns visible targets when VisibilityCheck is on
 local function GetBestTarget()
     local best, bestScore = nil, math.huge
     local center = ScreenCenter()
@@ -293,13 +266,15 @@ local function GetBestTarget()
                         if onScreen then
                             local cross = (screen - center).Magnitude
                             if cross <= fov then
-                                local ok = true
-                                if B.Settings.Aim.VisibilityCheck then
-                                    ok = VisibleCheck(camPos, part.Position, {char})
-                                end
-                                if ok and cross < bestScore then
-                                    bestScore = cross
-                                    best = p
+                                local visible = IsVisible(camPos, part.Position, char)
+                                -- HARD RULE: if VisibilityCheck ON → only accept visible (green)
+                                if B.Settings.Aim.VisibilityCheck and not visible then
+                                    -- skip red targets completely
+                                else
+                                    if cross < bestScore then
+                                        bestScore = cross
+                                        best = p
+                                    end
                                 end
                             end
                         end
@@ -321,6 +296,15 @@ local function AimAt(target)
     local part = GetAimPart(char)
     if not part then return end
 
+    -- re-check visible on every frame when lock
+    if B.Settings.Aim.VisibilityCheck then
+        if not IsVisible(Camera.CFrame.Position, part.Position, char) then
+            B.LockedTarget = nil
+            B.CurrentTarget = nil
+            return
+        end
+    end
+
     local pos = part.Position
     if B.Settings.Aim.AimPrediction then
         local vel = part.AssemblyLinearVelocity or Vector3.zero
@@ -331,7 +315,7 @@ local function AimAt(target)
     local goal = CFrame.new(current.Position, pos)
     local smooth = B.Settings.Aim.AimSmoothing
     if B.Settings.Protect.SoftCamera then
-        smooth = math.clamp(smooth * 0.7, 0.04, 0.25)
+        smooth = math.clamp(smooth * 0.75, 0.06, 0.28)
     end
     Camera.CFrame = current:Lerp(goal, smooth)
 end
@@ -346,7 +330,6 @@ local function UpdateAim()
 
     local center = ScreenCenter()
 
-    -- FOV always locked to screen center (never follows finger)
     if FOVCircle and B.Settings.Aim.FOVCircle then
         FOVCircle.Position = center
         FOVCircle.Radius = B.Settings.Aim.FOV
@@ -355,6 +338,7 @@ local function UpdateAim()
         FOVCircle.Visible = false
     end
 
+    -- validate locked target still alive + visible
     if B.Settings.Aim.AimLock and B.LockedTarget then
         local char = GetChar(B.LockedTarget)
         if not IsAlive(char) then
@@ -363,15 +347,21 @@ local function UpdateAim()
             local part = GetAimPart(char)
             if part then
                 local screen, on = WorldToScreen(part.Position)
-                if not on or (screen - center).Magnitude > B.Settings.Aim.FOV * 1.5 then
+                local stillVisible = true
+                if B.Settings.Aim.VisibilityCheck then
+                    stillVisible = IsVisible(Camera.CFrame.Position, part.Position, char)
+                end
+                if not on or not stillVisible or (screen - center).Magnitude > B.Settings.Aim.FOV * 1.6 then
                     B.LockedTarget = nil
                 end
+            else
+                B.LockedTarget = nil
             end
         end
     end
 
     local target = (B.Settings.Aim.AimLock and B.LockedTarget) or GetBestTarget()
-    if B.Settings.Aim.AimLock and not B.LockedTarget then
+    if B.Settings.Aim.AimLock and not B.LockedTarget and target then
         B.LockedTarget = target
     end
     if not B.Settings.Aim.AimLock then
@@ -402,7 +392,7 @@ local function UpdateAim()
                 hl.Adornee = char
                 hl.FillColor = Color3.fromRGB(0, 255, 160)
                 hl.OutlineColor = Color3.fromRGB(0, 200, 120)
-                hl.FillTransparency = 0.6
+                hl.FillTransparency = 0.55
                 hl.Parent = CoreGui
                 B.Highlights[target.UserId] = hl
             end
@@ -426,22 +416,22 @@ local function GetESPPack(player)
     local pack = {}
     if DrawingLib then
         pack.Box = Drawing.new("Square")
-        pack.Box.Thickness = 1.2
+        pack.Box.Thickness = 1.4
         pack.Box.Filled = false
         pack.Box.Visible = false
 
         pack.Name = Drawing.new("Text")
-        pack.Name.Size = 13
+        pack.Name.Size = 14
         pack.Name.Center = true
         pack.Name.Outline = true
         pack.Name.Visible = false
 
         pack.Health = Drawing.new("Line")
-        pack.Health.Thickness = 2.2
+        pack.Health.Thickness = 2.4
         pack.Health.Visible = false
 
         pack.Dist = Drawing.new("Text")
-        pack.Dist.Size = 11
+        pack.Dist.Size = 12
         pack.Dist.Center = true
         pack.Dist.Outline = true
         pack.Dist.Visible = false
@@ -450,16 +440,16 @@ local function GetESPPack(player)
         pack.Tracer.Thickness = 1
         pack.Tracer.Visible = false
 
-        pack.Weapon = Drawing.new("Text")
-        pack.Weapon.Size = 11
-        pack.Weapon.Center = true
-        pack.Weapon.Outline = true
-        pack.Weapon.Visible = false
+        pack.Status = Drawing.new("Text")
+        pack.Status.Size = 12
+        pack.Status.Center = true
+        pack.Status.Outline = true
+        pack.Status.Visible = false
 
         pack.Skel = {}
-        for i = 1, 10 do
+        for i = 1, 14 do
             local l = Drawing.new("Line")
-            l.Thickness = 1.1
+            l.Thickness = 1.3
             l.Visible = false
             pack.Skel[i] = l
         end
@@ -477,21 +467,51 @@ local function HidePack(pack)
     for k, d in pairs(pack) do
         if k == "Skel" then
             for _, l in ipairs(d) do if l then l.Visible = false end end
-        elseif d and type(d) == "table" and d.Visible ~= nil then
-            d.Visible = false
         elseif d and d.Visible ~= nil then
             d.Visible = false
         end
     end
 end
 
+-- R15 + R6 compatible
 local BonePairs = {
-    {"Head","UpperTorso"}, {"UpperTorso","LowerTorso"},
-    {"UpperTorso","LeftUpperArm"}, {"LeftUpperArm","LeftLowerArm"},
-    {"UpperTorso","RightUpperArm"}, {"RightUpperArm","RightLowerArm"},
-    {"LowerTorso","LeftUpperLeg"}, {"LeftUpperLeg","LeftLowerLeg"},
-    {"LowerTorso","RightUpperLeg"}, {"RightUpperLeg","RightLowerLeg"},
+    {"Head", "UpperTorso"},
+    {"Head", "Torso"},
+    {"UpperTorso", "LowerTorso"},
+    {"UpperTorso", "LeftUpperArm"},
+    {"LeftUpperArm", "LeftLowerArm"},
+    {"LeftLowerArm", "LeftHand"},
+    {"UpperTorso", "RightUpperArm"},
+    {"RightUpperArm", "RightLowerArm"},
+    {"RightLowerArm", "RightHand"},
+    {"LowerTorso", "LeftUpperLeg"},
+    {"LeftUpperLeg", "LeftLowerLeg"},
+    {"LeftLowerLeg", "LeftFoot"},
+    {"LowerTorso", "RightUpperLeg"},
+    {"RightUpperLeg", "RightLowerLeg"},
+    {"RightLowerLeg", "RightFoot"},
+    -- R6
+    {"Torso", "Left Arm"},
+    {"Torso", "Right Arm"},
+    {"Torso", "Left Leg"},
+    {"Torso", "Right Leg"},
+    {"Head", "Torso"},
 }
+
+local function GetBodyBounds(char)
+    local head = GetHead(char)
+    local root = GetRoot(char)
+    if not head or not root then return nil end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local top = head.Position + Vector3.new(0, 0.4, 0)
+    local bottom = root.Position - Vector3.new(0, (hum and hum.HipHeight or 2) + 1.2, 0)
+    -- also try feet
+    local foot = char:FindFirstChild("LeftFoot") or char:FindFirstChild("Left Leg") or char:FindFirstChild("RightFoot")
+    if foot then
+        bottom = Vector3.new(root.Position.X, math.min(bottom.Y, foot.Position.Y - 0.3), root.Position.Z)
+    end
+    return top, bottom
+end
 
 local function UpdatePlayerESP()
     if not B.Settings.ESP.Enabled then
@@ -503,7 +523,6 @@ local function UpdatePlayerESP()
     local vp = Camera.ViewportSize
     local center = Vector2.new(vp.X/2, vp.Y/2)
 
-    -- cleanup left players
     local aliveIds = {}
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then aliveIds[p.UserId] = true end
@@ -545,12 +564,16 @@ local function UpdatePlayerESP()
             continue
         end
 
-        local headScreen, onScreen = WorldToScreen(head.Position + Vector3.new(0, 0.35, 0))
+        local top, bottom = GetBodyBounds(char)
+        if not top then HidePack(pack) continue end
+
+        local topScreen, onScreen = WorldToScreen(top)
+        local bottomScreen = select(1, WorldToScreen(bottom))
         local rootScreen = select(1, WorldToScreen(root.Position))
 
         local visible = true
         if B.Settings.ESP.VisibleCheck then
-            visible = VisibleCheck(camPos, head.Position, {char})
+            visible = IsVisible(camPos, head.Position, char)
         end
 
         local color = visible and B.Settings.ESP.VisibleColor or B.Settings.ESP.HiddenColor
@@ -558,18 +581,20 @@ local function UpdatePlayerESP()
             color = B.Settings.ESP.PriorityColor
         end
 
+        -- FULL BODY BOX
         if B.Settings.ESP.Box and pack.Box then
-            local h = math.max(math.abs(headScreen.Y - rootScreen.Y), 8)
-            local w = h * 0.55
-            pack.Box.Size = Vector2.new(w, h)
-            pack.Box.Position = Vector2.new(headScreen.X - w/2, headScreen.Y)
+            local height = math.abs(topScreen.Y - bottomScreen.Y)
+            if height < 12 then height = 12 end
+            local width = height * 0.65
+            pack.Box.Size = Vector2.new(width, height)
+            pack.Box.Position = Vector2.new(topScreen.X - width/2, topScreen.Y)
             pack.Box.Color = color
             pack.Box.Visible = onScreen
         end
 
         if B.Settings.ESP.Name and pack.Name then
             pack.Name.Text = player.DisplayName or player.Name
-            pack.Name.Position = Vector2.new(headScreen.X, headScreen.Y - 16)
+            pack.Name.Position = Vector2.new(topScreen.X, topScreen.Y - 16)
             pack.Name.Color = color
             pack.Name.Visible = onScreen
         end
@@ -578,10 +603,10 @@ local function UpdatePlayerESP()
             local hum = char:FindFirstChildOfClass("Humanoid")
             if hum then
                 local pct = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
-                local bh = math.max(math.abs(headScreen.Y - rootScreen.Y), 8)
-                local x = headScreen.X - (bh * 0.55)/2 - 5
-                pack.Health.From = Vector2.new(x, headScreen.Y + bh)
-                pack.Health.To   = Vector2.new(x, headScreen.Y + bh * (1 - pct))
+                local h = math.abs(topScreen.Y - bottomScreen.Y)
+                local x = topScreen.X - (h * 0.65)/2 - 6
+                pack.Health.From = Vector2.new(x, topScreen.Y + h)
+                pack.Health.To   = Vector2.new(x, topScreen.Y + h * (1 - pct))
                 pack.Health.Color = Color3.fromRGB(255*(1-pct), 255*pct, 40)
                 pack.Health.Visible = onScreen
             end
@@ -589,7 +614,7 @@ local function UpdatePlayerESP()
 
         if B.Settings.ESP.Distance and pack.Dist then
             pack.Dist.Text = string.format("[%dm]", math.floor(dist))
-            pack.Dist.Position = Vector2.new(rootScreen.X, rootScreen.Y + 6)
+            pack.Dist.Position = Vector2.new(bottomScreen.X, bottomScreen.Y + 4)
             pack.Dist.Color = Color3.fromRGB(180, 200, 210)
             pack.Dist.Visible = onScreen
         end
@@ -601,26 +626,25 @@ local function UpdatePlayerESP()
             pack.Tracer.Visible = onScreen
         end
 
-        if (B.Settings.ESP.WeaponESP or B.Settings.ESP.StatusESP) and pack.Weapon then
-            local tool = char:FindFirstChildOfClass("Tool")
+        if B.Settings.ESP.StatusESP and pack.Status then
             local hum = char:FindFirstChildOfClass("Humanoid")
-            local t = ""
-            if B.Settings.ESP.WeaponESP and tool then t = tool.Name end
-            if B.Settings.ESP.StatusESP and hum then
-                t = t .. (t ~= "" and " | " or "") .. string.format("%.0fHP", hum.Health)
+            if hum then
+                pack.Status.Text = string.format("%.0fHP", hum.Health)
+                pack.Status.Position = Vector2.new(bottomScreen.X, bottomScreen.Y + 18)
+                pack.Status.Color = Color3.fromRGB(200, 220, 100)
+                pack.Status.Visible = onScreen
             end
-            pack.Weapon.Text = t
-            pack.Weapon.Position = Vector2.new(rootScreen.X, rootScreen.Y + 18)
-            pack.Weapon.Color = Color3.fromRGB(200, 220, 100)
-            pack.Weapon.Visible = onScreen and t ~= ""
         end
 
+        -- SKELETON
         if B.Settings.ESP.Skeleton and pack.Skel then
-            for i, pair in ipairs(BonePairs) do
+            local idx = 1
+            for _, pair in ipairs(BonePairs) do
+                if idx > #pack.Skel then break end
                 local a = char:FindFirstChild(pair[1])
                 local b = char:FindFirstChild(pair[2])
-                local line = pack.Skel[i]
-                if a and b and line then
+                local line = pack.Skel[idx]
+                if a and b and a:IsA("BasePart") and b:IsA("BasePart") and line then
                     local sa, oa = WorldToScreen(a.Position)
                     local sb, ob = WorldToScreen(b.Position)
                     if oa and ob then
@@ -628,12 +652,12 @@ local function UpdatePlayerESP()
                         line.To = sb
                         line.Color = color
                         line.Visible = true
-                    else
-                        line.Visible = false
+                        idx = idx + 1
                     end
-                elseif line then
-                    line.Visible = false
                 end
+            end
+            for i = idx, #pack.Skel do
+                pack.Skel[i].Visible = false
             end
         elseif pack.Skel then
             for _, l in ipairs(pack.Skel) do l.Visible = false end
@@ -647,8 +671,8 @@ local function UpdatePlayerESP()
                 local ang = math.atan2(dir.Y, dir.X)
                 local size = 9
                 pack.Off.PointA = edge
-                pack.Off.PointB = edge + Vector2.new(math.cos(ang + 2.4) * size, math.sin(ang + 2.4) * size)
-                pack.Off.PointC = edge + Vector2.new(math.cos(ang - 2.4) * size, math.sin(ang - 2.4) * size)
+                pack.Off.PointB = edge + Vector2.new(math.cos(ang+2.4)*size, math.sin(ang+2.4)*size)
+                pack.Off.PointC = edge + Vector2.new(math.cos(ang-2.4)*size, math.sin(ang-2.4)*size)
                 pack.Off.Color = B.Settings.ESP.OffscreenColor
                 pack.Off.Visible = true
             end
@@ -658,36 +682,32 @@ local function UpdatePlayerESP()
     end
 end
 
--- Radar
+-- Radar simple
 local RadarFrame, RadarDots = nil, {}
 local function EnsureRadar()
     if RadarFrame then return end
     local parent = CoreGui:FindFirstChild("BAXTARA_X_CHEAT") or CoreGui
     RadarFrame = Instance.new("Frame")
     RadarFrame.Name = "BAXTARA_Radar"
-    RadarFrame.Size = UDim2.new(0, 120, 0, 120)
-    RadarFrame.Position = UDim2.new(1, -140, 0, 16)
-    RadarFrame.BackgroundColor3 = Color3.fromRGB(10, 14, 18)
+    RadarFrame.Size = UDim2.new(0, 110, 0, 110)
+    RadarFrame.Position = UDim2.new(1, -128, 0, 14)
+    RadarFrame.BackgroundColor3 = Color3.fromRGB(10,14,18)
     RadarFrame.BackgroundTransparency = 0.3
     RadarFrame.BorderSizePixel = 0
     RadarFrame.Visible = false
     RadarFrame.Parent = parent
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 6)
-    c.Parent = RadarFrame
+    Instance.new("UICorner", RadarFrame).CornerRadius = UDim.new(0,6)
     local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(0, 170, 95)
+    stroke.Color = Color3.fromRGB(0,170,95)
     stroke.Thickness = 1
     stroke.Parent = RadarFrame
-    local center = Instance.new("Frame")
-    center.Size = UDim2.new(0, 5, 0, 5)
-    center.Position = UDim2.new(0.5, -2.5, 0.5, -2.5)
-    center.BackgroundColor3 = Color3.fromRGB(0, 255, 140)
-    center.BorderSizePixel = 0
-    center.Parent = RadarFrame
-    local cc = Instance.new("UICorner")
-    cc.CornerRadius = UDim.new(1, 0)
-    cc.Parent = center
+    local c = Instance.new("Frame")
+    c.Size = UDim2.new(0,5,0,5)
+    c.Position = UDim2.new(0.5,-2.5,0.5,-2.5)
+    c.BackgroundColor3 = Color3.fromRGB(0,255,140)
+    c.BorderSizePixel = 0
+    c.Parent = RadarFrame
+    Instance.new("UICorner", c).CornerRadius = UDim.new(1,0)
 end
 
 local function UpdateRadar()
@@ -707,23 +727,21 @@ local function UpdateRadar()
                 local r = GetRoot(char)
                 if r then
                     local rel = myRoot.CFrame:PointToObjectSpace(r.Position)
-                    local scale = 120 / (B.Settings.ESP.MaxDistance * 0.55)
-                    local x = math.clamp(rel.X * scale + 60, 3, 117)
-                    local y = math.clamp(-rel.Z * scale + 60, 3, 117)
+                    local scale = 110 / (B.Settings.ESP.MaxDistance * 0.5)
+                    local x = math.clamp(rel.X * scale + 55, 3, 107)
+                    local y = math.clamp(-rel.Z * scale + 55, 3, 107)
                     local id = p.UserId
                     used[id] = true
                     if not RadarDots[id] then
                         local d = Instance.new("Frame")
-                        d.Size = UDim2.new(0, 5, 0, 5)
+                        d.Size = UDim2.new(0,5,0,5)
                         d.BorderSizePixel = 0
-                        d.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+                        d.BackgroundColor3 = Color3.fromRGB(255,80,80)
                         d.Parent = RadarFrame
-                        local dc = Instance.new("UICorner")
-                        dc.CornerRadius = UDim.new(1, 0)
-                        dc.Parent = d
+                        Instance.new("UICorner", d).CornerRadius = UDim.new(1,0)
                         RadarDots[id] = d
                     end
-                    RadarDots[id].Position = UDim2.new(0, x - 2.5, 0, y - 2.5)
+                    RadarDots[id].Position = UDim2.new(0, x-2.5, 0, y-2.5)
                     RadarDots[id].Visible = true
                 end
             end
@@ -734,7 +752,7 @@ local function UpdateRadar()
     end
 end
 
--- ===================== MOVEMENT (softer defaults) =====================
+-- ===================== MOVEMENT + GHOST =====================
 local FlyBV, FlyBG, NoclipConn, JumpConn, AirWalkPart
 
 local function SetFly(on)
@@ -748,15 +766,15 @@ local function SetFly(on)
     if on then
         hum.PlatformStand = true
         FlyBV = Instance.new("BodyVelocity")
-        FlyBV.MaxForce = Vector3.new(4e4, 4e4, 4e4)
+        FlyBV.MaxForce = Vector3.new(4e4,4e4,4e4)
         FlyBV.Velocity = Vector3.zero
         FlyBV.Parent = root
         FlyBG = Instance.new("BodyGyro")
-        FlyBG.MaxTorque = Vector3.new(4e4, 4e4, 4e4)
+        FlyBG.MaxTorque = Vector3.new(4e4,4e4,4e4)
         FlyBG.P = 8000
         FlyBG.Parent = root
         AddConn(RunService.RenderStepped:Connect(function()
-            if not B.Settings.Brutal.Fly or not FlyBV or not FlyBG then return end
+            if not B.Settings.Brutal.Fly or not FlyBV then return end
             local cf = Camera.CFrame
             local move = Vector3.zero
             if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + cf.LookVector end
@@ -766,13 +784,9 @@ local function SetFly(on)
             if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.yAxis end
             if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.yAxis end
             if UserInputService.TouchEnabled and #UserInputService:GetTouches() > 0 then
-                move = move + cf.LookVector * 0.7
+                move = move + cf.LookVector * 0.65
             end
-            if move.Magnitude > 0.1 then
-                FlyBV.Velocity = move.Unit * B.Settings.Brutal.FlySpeed
-            else
-                FlyBV.Velocity = Vector3.zero
-            end
+            FlyBV.Velocity = move.Magnitude > 0.1 and move.Unit * B.Settings.Brutal.FlySpeed or Vector3.zero
             FlyBG.CFrame = cf
         end))
     else
@@ -864,9 +878,7 @@ local function SetGod(on)
         hum.MaxHealth = 1e9
         hum.Health = 1e9
         AddConn(hum.HealthChanged:Connect(function()
-            if B.Settings.Brutal.GodMode then
-                hum.Health = 1e9
-            end
+            if B.Settings.Brutal.GodMode then hum.Health = 1e9 end
         end))
     else
         hum.MaxHealth = 100
@@ -877,15 +889,14 @@ end
 local function SetHitbox(on)
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then
-            local char = GetChar(p)
-            local root = char and GetRoot(char)
+            local root = GetRoot(GetChar(p))
             if root then
                 if on then
                     root.Size = Vector3.new(B.Settings.Brutal.HitboxSize, B.Settings.Brutal.HitboxSize, B.Settings.Brutal.HitboxSize)
                     root.Transparency = 0.7
                     root.CanCollide = false
                 else
-                    root.Size = Vector3.new(2, 2, 1)
+                    root.Size = Vector3.new(2,2,1)
                     root.Transparency = 1
                 end
             end
@@ -899,7 +910,7 @@ local function SetAirWalk(on)
         local root = GetRoot(LocalPlayer.Character)
         if not root then return end
         AirWalkPart = Instance.new("Part")
-        AirWalkPart.Size = Vector3.new(5, 0.2, 5)
+        AirWalkPart.Size = Vector3.new(5,0.2,5)
         AirWalkPart.Anchored = true
         AirWalkPart.CanCollide = true
         AirWalkPart.Transparency = 1
@@ -907,10 +918,47 @@ local function SetAirWalk(on)
         AddConn(RunService.Heartbeat:Connect(function()
             if not B.Settings.Brutal.AirWalk or not AirWalkPart then return end
             local r = GetRoot(LocalPlayer.Character)
-            if r then
-                AirWalkPart.CFrame = CFrame.new(r.Position.X, r.Position.Y - 3, r.Position.Z)
+            if r then AirWalkPart.CFrame = CFrame.new(r.Position.X, r.Position.Y - 3, r.Position.Z) end
+        end))
+    end
+end
+
+-- GHOST MODE: local transparency (others may still see depending on replication)
+local function SetGhost(on)
+    local char = LocalPlayer.Character
+    if not char then return end
+    if on then
+        B.OriginalTransparency = {}
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                B.OriginalTransparency[part] = part.LocalTransparencyModifier
+                part.LocalTransparencyModifier = 1
+            elseif part:IsA("Decal") then
+                B.OriginalTransparency[part] = part.Transparency
+                part.Transparency = 1
+            end
+        end
+        -- keep updating if new parts appear
+        AddConn(char.DescendantAdded:Connect(function(obj)
+            if B.Settings.Brutal.GhostMode then
+                if obj:IsA("BasePart") then
+                    obj.LocalTransparencyModifier = 1
+                elseif obj:IsA("Decal") then
+                    obj.Transparency = 1
+                end
             end
         end))
+    else
+        for part, val in pairs(B.OriginalTransparency) do
+            if part and part.Parent then
+                if part:IsA("BasePart") then
+                    part.LocalTransparencyModifier = val or 0
+                elseif part:IsA("Decal") then
+                    part.Transparency = val or 0
+                end
+            end
+        end
+        B.OriginalTransparency = {}
     end
 end
 
@@ -924,35 +972,34 @@ ScreenGui.Parent = CoreGui
 
 local isMobile = UserInputService.TouchEnabled
 local panelW = isMobile and math.clamp(Camera.ViewportSize.X - 24, 300, 380) or 390
-local panelH = isMobile and math.clamp(Camera.ViewportSize.Y - 80, 400, 480) or 490
+local panelH = isMobile and math.clamp(Camera.ViewportSize.Y - 80, 400, 490) or 500
 
--- Loading
 local LoadF = Instance.new("Frame")
 LoadF.Size = UDim2.new(1,0,1,0)
 LoadF.BackgroundColor3 = Color3.fromRGB(8,10,14)
 LoadF.BorderSizePixel = 0
 LoadF.Parent = ScreenGui
 local LoadTitle = Instance.new("TextLabel")
-LoadTitle.Size = UDim2.new(1,0,0,32)
+LoadTitle.Size = UDim2.new(1,0,0,30)
 LoadTitle.Position = UDim2.new(0,0,0.36,0)
 LoadTitle.BackgroundTransparency = 1
 LoadTitle.Text = "BAXTARA X CHEAT"
 LoadTitle.TextColor3 = Color3.fromRGB(0,255,140)
 LoadTitle.Font = Enum.Font.Code
-LoadTitle.TextSize = 24
+LoadTitle.TextSize = 22
 LoadTitle.Parent = LoadF
 local LoadSub = Instance.new("TextLabel")
-LoadSub.Size = UDim2.new(1,0,0,18)
-LoadSub.Position = UDim2.new(0,0,0.36,34)
+LoadSub.Size = UDim2.new(1,0,0,16)
+LoadSub.Position = UDim2.new(0,0,0.36,32)
 LoadSub.BackgroundTransparency = 1
-LoadSub.Text = "NUGI CENEL  |  @BAXTARA X CHEAT  |  v3"
+LoadSub.Text = "NUGI CENEL  |  v4  |  all OFF default"
 LoadSub.TextColor3 = Color3.fromRGB(90,130,110)
 LoadSub.Font = Enum.Font.Code
-LoadSub.TextSize = 12
+LoadSub.TextSize = 11
 LoadSub.Parent = LoadF
 local BarBG = Instance.new("Frame")
-BarBG.Size = UDim2.new(0,240,0,4)
-BarBG.Position = UDim2.new(0.5,-120,0.5,0)
+BarBG.Size = UDim2.new(0,220,0,4)
+BarBG.Position = UDim2.new(0.5,-110,0.5,0)
 BarBG.BackgroundColor3 = Color3.fromRGB(28,36,42)
 BarBG.BorderSizePixel = 0
 BarBG.Parent = LoadF
@@ -962,10 +1009,10 @@ Bar.BackgroundColor3 = Color3.fromRGB(0,255,140)
 Bar.BorderSizePixel = 0
 Bar.Parent = BarBG
 local LoadStat = Instance.new("TextLabel")
-LoadStat.Size = UDim2.new(1,0,0,16)
+LoadStat.Size = UDim2.new(1,0,0,14)
 LoadStat.Position = UDim2.new(0,0,0.5,10)
 LoadStat.BackgroundTransparency = 1
-LoadStat.Text = "repairing aim + esp core..."
+LoadStat.Text = "visible-only aim + full box..."
 LoadStat.TextColor3 = Color3.fromRGB(130,150,140)
 LoadStat.Font = Enum.Font.Code
 LoadStat.TextSize = 11
@@ -988,23 +1035,23 @@ MainStroke.Transparency = 0.35
 MainStroke.Parent = Main
 
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1,0,0,32)
+TitleBar.Size = UDim2.new(1,0,0,30)
 TitleBar.BackgroundColor3 = Color3.fromRGB(14,18,22)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = Main
 local TitleLbl = Instance.new("TextLabel")
-TitleLbl.Size = UDim2.new(1,-80,1,0)
+TitleLbl.Size = UDim2.new(1,-70,1,0)
 TitleLbl.Position = UDim2.new(0,10,0,0)
 TitleLbl.BackgroundTransparency = 1
-TitleLbl.Text = "❯ BAXTARA X CHEAT v3"
+TitleLbl.Text = "❯ BAXTARA X CHEAT v4"
 TitleLbl.TextColor3 = Color3.fromRGB(0,255,140)
 TitleLbl.Font = Enum.Font.Code
 TitleLbl.TextSize = 13
 TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
 TitleLbl.Parent = TitleBar
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0,32,0,32)
-CloseBtn.Position = UDim2.new(1,-32,0,0)
+CloseBtn.Size = UDim2.new(0,30,0,30)
+CloseBtn.Position = UDim2.new(1,-30,0,0)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = "✕"
 CloseBtn.TextColor3 = Color3.fromRGB(255,80,80)
@@ -1012,18 +1059,18 @@ CloseBtn.Font = Enum.Font.Code
 CloseBtn.TextSize = 14
 CloseBtn.Parent = TitleBar
 local MinBtn = Instance.new("TextButton")
-MinBtn.Size = UDim2.new(0,32,0,32)
-MinBtn.Position = UDim2.new(1,-64,0,0)
+MinBtn.Size = UDim2.new(0,30,0,30)
+MinBtn.Position = UDim2.new(1,-60,0,0)
 MinBtn.BackgroundTransparency = 1
 MinBtn.Text = "–"
 MinBtn.TextColor3 = Color3.fromRGB(200,200,90)
 MinBtn.Font = Enum.Font.Code
-MinBtn.TextSize = 16
+MinBtn.TextSize = 15
 MinBtn.Parent = TitleBar
 
 local TabBar = Instance.new("Frame")
-TabBar.Size = UDim2.new(1,0,0,28)
-TabBar.Position = UDim2.new(0,0,0,32)
+TabBar.Size = UDim2.new(1,0,0,26)
+TabBar.Position = UDim2.new(0,0,0,30)
 TabBar.BackgroundColor3 = Color3.fromRGB(16,20,26)
 TabBar.BorderSizePixel = 0
 TabBar.Parent = Main
@@ -1052,8 +1099,8 @@ for i, name in ipairs(TabNames) do
     btn.Parent = TabBar
     TabBtns[name] = btn
     local sc = Instance.new("ScrollingFrame")
-    sc.Size = UDim2.new(1,-10,1,-68)
-    sc.Position = UDim2.new(0,5,0,64)
+    sc.Size = UDim2.new(1,-10,1,-64)
+    sc.Position = UDim2.new(0,5,0,60)
     sc.BackgroundTransparency = 1
     sc.BorderSizePixel = 0
     sc.ScrollBarThickness = 3
@@ -1068,7 +1115,7 @@ SwitchTab("AIM")
 
 local function MakeSection(parent, title)
     local h = Instance.new("Frame")
-    h.Size = UDim2.new(1,-4,0,20)
+    h.Size = UDim2.new(1,-4,0,18)
     h.BackgroundTransparency = 1
     h.Parent = parent
     local l = Instance.new("TextLabel")
@@ -1085,11 +1132,11 @@ end
 
 local function MakeToggle(parent, text, default, cb)
     local h = Instance.new("Frame")
-    h.Size = UDim2.new(1,-4,0,26)
+    h.Size = UDim2.new(1,-4,0,24)
     h.BackgroundTransparency = 1
     h.Parent = parent
     local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(1,-52,1,0)
+    l.Size = UDim2.new(1,-50,1,0)
     l.Position = UDim2.new(0,4,0,0)
     l.BackgroundTransparency = 1
     l.Text = text
@@ -1099,15 +1146,15 @@ local function MakeToggle(parent, text, default, cb)
     l.TextXAlignment = Enum.TextXAlignment.Left
     l.Parent = h
     local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(0,40,0,18)
-    bg.Position = UDim2.new(1,-46,0.5,-9)
+    bg.Size = UDim2.new(0,38,0,16)
+    bg.Position = UDim2.new(1,-44,0.5,-8)
     bg.BackgroundColor3 = default and Color3.fromRGB(0,155,85) or Color3.fromRGB(40,48,55)
     bg.BorderSizePixel = 0
     bg.Parent = h
     Instance.new("UICorner", bg).CornerRadius = UDim.new(1,0)
     local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0,14,0,14)
-    knob.Position = default and UDim2.new(1,-16,0.5,-7) or UDim2.new(0,2,0.5,-7)
+    knob.Size = UDim2.new(0,12,0,12)
+    knob.Position = default and UDim2.new(1,-14,0.5,-6) or UDim2.new(0,2,0.5,-6)
     knob.BackgroundColor3 = Color3.fromRGB(240,245,250)
     knob.BorderSizePixel = 0
     knob.Parent = bg
@@ -1124,7 +1171,7 @@ local function MakeToggle(parent, text, default, cb)
             BackgroundColor3 = state and Color3.fromRGB(0,155,85) or Color3.fromRGB(40,48,55)
         }):Play()
         TweenService:Create(knob, TweenInfo.new(0.12), {
-            Position = state and UDim2.new(1,-16,0.5,-7) or UDim2.new(0,2,0.5,-7)
+            Position = state and UDim2.new(1,-14,0.5,-6) or UDim2.new(0,2,0.5,-6)
         }):Play()
         if cb then cb(state) end
     end)
@@ -1133,11 +1180,11 @@ end
 
 local function MakeSlider(parent, text, min, max, default, cb)
     local h = Instance.new("Frame")
-    h.Size = UDim2.new(1,-4,0,38)
+    h.Size = UDim2.new(1,-4,0,36)
     h.BackgroundTransparency = 1
     h.Parent = parent
     local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(1,-48,0,15)
+    l.Size = UDim2.new(1,-46,0,14)
     l.Position = UDim2.new(0,4,0,0)
     l.BackgroundTransparency = 1
     l.Text = text
@@ -1147,8 +1194,8 @@ local function MakeSlider(parent, text, min, max, default, cb)
     l.TextXAlignment = Enum.TextXAlignment.Left
     l.Parent = h
     local val = Instance.new("TextLabel")
-    val.Size = UDim2.new(0,46,0,15)
-    val.Position = UDim2.new(1,-50,0,0)
+    val.Size = UDim2.new(0,44,0,14)
+    val.Position = UDim2.new(1,-48,0,0)
     val.BackgroundTransparency = 1
     val.Text = tostring(default)
     val.TextColor3 = B.Settings.UI.Accent
@@ -1157,8 +1204,8 @@ local function MakeSlider(parent, text, min, max, default, cb)
     val.TextXAlignment = Enum.TextXAlignment.Right
     val.Parent = h
     local barBG = Instance.new("Frame")
-    barBG.Size = UDim2.new(1,-8,0,7)
-    barBG.Position = UDim2.new(0,4,0,20)
+    barBG.Size = UDim2.new(1,-8,0,6)
+    barBG.Position = UDim2.new(0,4,0,18)
     barBG.BackgroundColor3 = Color3.fromRGB(35,42,50)
     barBG.BorderSizePixel = 0
     barBG.Parent = h
@@ -1202,22 +1249,22 @@ local function Layout(frame)
         for _, ch in ipairs(frame:GetChildren()) do
             if ch:IsA("GuiObject") then
                 ch.Position = UDim2.new(0,0,0,y)
-                y = y + (ch.AbsoluteSize.Y > 0 and ch.AbsoluteSize.Y or ch.Size.Y.Offset) + 3
+                y = y + (ch.AbsoluteSize.Y > 0 and ch.AbsoluteSize.Y or ch.Size.Y.Offset) + 2
             end
         end
-        frame.CanvasSize = UDim2.new(0,0,0,y + 8)
+        frame.CanvasSize = UDim2.new(0,0,0,y + 6)
     end)
 end
 
--- AIM tab
+-- AIM
 do
     local f = TabFrames.AIM
-    MakeSection(f, "Core (Center FOV)")
+    MakeSection(f, "Core (visible = green only)")
     MakeToggle(f, "Enable Aimbot", false, function(v)
         B.Settings.Aim.Enabled = v
         if v then MakeFOV() MakeLine() end
     end)
-    MakeToggle(f, "Visibility Check", true, function(v) B.Settings.Aim.VisibilityCheck = v end)
+    MakeToggle(f, "Visibility Check (no red lock)", true, function(v) B.Settings.Aim.VisibilityCheck = v end)
     MakeToggle(f, "Head Aim", true, function(v)
         B.Settings.Aim.HeadAim = v
         if v then B.Settings.Aim.BodyAim = false end
@@ -1228,26 +1275,26 @@ do
     end)
     MakeToggle(f, "Multi-Bone", false, function(v) B.Settings.Aim.MultiBone = v end)
     MakeSection(f, "FOV")
-    MakeToggle(f, "FOV Circle (center)", true, function(v) B.Settings.Aim.FOVCircle = v end)
-    MakeSlider(f, "FOV Size", 30, 250, 90, function(v) B.Settings.Aim.FOV = v end)
-    MakeSlider(f, "Aim Distance", 50, 1200, 400, function(v) B.Settings.Aim.AimDistance = v end)
+    MakeToggle(f, "FOV Circle", true, function(v) B.Settings.Aim.FOVCircle = v end)
+    MakeSlider(f, "FOV Size", 40, 250, 100, function(v) B.Settings.Aim.FOV = v end)
+    MakeSlider(f, "Aim Distance", 50, 1500, 500, function(v) B.Settings.Aim.AimDistance = v end)
     MakeSection(f, "Feel")
     MakeToggle(f, "Aim Lock", false, function(v) B.Settings.Aim.AimLock = v if not v then B.LockedTarget = nil end end)
     MakeToggle(f, "Prediction", false, function(v) B.Settings.Aim.AimPrediction = v end)
-    MakeSlider(f, "Smoothing x100", 4, 35, 12, function(v) B.Settings.Aim.AimSmoothing = v/100 end)
+    MakeSlider(f, "Smoothing x100", 5, 40, 18, function(v) B.Settings.Aim.AimSmoothing = v/100 end)
     MakeToggle(f, "Target Line", false, function(v) B.Settings.Aim.DrawTargetLine = v end)
     MakeToggle(f, "Highlight", false, function(v) B.Settings.Aim.TargetHighlight = v end)
     MakeToggle(f, "Team Check", true, function(v) B.Settings.Aim.TeamCheck = v end)
-    MakeToggle(f, "Soft Camera (less flag)", true, function(v) B.Settings.Protect.SoftCamera = v end)
+    MakeToggle(f, "Soft Camera", true, function(v) B.Settings.Protect.SoftCamera = v end)
     Layout(f)
 end
 
--- ESP tab
+-- ESP
 do
     local f = TabFrames.ESP
     MakeSection(f, "Player")
     MakeToggle(f, "Enable ESP", false, function(v) B.Settings.ESP.Enabled = v end)
-    MakeToggle(f, "Box", true, function(v) B.Settings.ESP.Box = v end)
+    MakeToggle(f, "Box (full body)", true, function(v) B.Settings.ESP.Box = v end)
     MakeToggle(f, "Name", true, function(v) B.Settings.ESP.Name = v end)
     MakeToggle(f, "Health Bar", true, function(v) B.Settings.ESP.HealthBar = v end)
     MakeToggle(f, "Distance", true, function(v) B.Settings.ESP.Distance = v end)
@@ -1258,18 +1305,18 @@ do
     MakeToggle(f, "Status HP", true, function(v) B.Settings.ESP.StatusESP = v end)
     MakeToggle(f, "Offscreen Arrow", true, function(v) B.Settings.ESP.Offscreen = v end)
     MakeToggle(f, "Radar", false, function(v) B.Settings.ESP.Radar = v end)
-    MakeSlider(f, "Max Distance", 100, 1500, 600, function(v) B.Settings.ESP.MaxDistance = v end)
+    MakeSlider(f, "Max Distance", 100, 1500, 700, function(v) B.Settings.ESP.MaxDistance = v end)
     Layout(f)
 end
 
--- BRUTAL tab
+-- BRUTAL
 do
     local f = TabFrames.BRUTAL
-    MakeSection(f, "Movement (soft)")
+    MakeSection(f, "Movement")
     MakeToggle(f, "Fly", false, function(v) B.Settings.Brutal.Fly = v SetFly(v) end)
     MakeSlider(f, "Fly Speed", 10, 80, 40, function(v) B.Settings.Brutal.FlySpeed = v end)
     MakeToggle(f, "Speed Hack", false, function(v) B.Settings.Brutal.SpeedHack = v SetSpeed(v) end)
-    MakeSlider(f, "Speed (max 40 safe)", 16, 40, 24, function(v)
+    MakeSlider(f, "Speed (max 40)", 16, 40, 24, function(v)
         B.Settings.Brutal.SpeedValue = v
         if B.Settings.Brutal.SpeedHack then SetSpeed(true) end
     end)
@@ -1278,7 +1325,8 @@ do
     MakeToggle(f, "Super Jump", false, function(v) B.Settings.Brutal.SuperJump = v SetSuperJump(v) end)
     MakeToggle(f, "Air Walk", false, function(v) B.Settings.Brutal.AirWalk = v SetAirWalk(v) end)
     MakeToggle(f, "No Fall", false, function(v) B.Settings.Brutal.NoFallDamage = v SetNoFall(v) end)
-    MakeSection(f, "Local only")
+    MakeSection(f, "Special")
+    MakeToggle(f, "Ghost Mode (local invis)", false, function(v) B.Settings.Brutal.GhostMode = v SetGhost(v) end)
     MakeToggle(f, "God Mode (local)", false, function(v) B.Settings.Brutal.GodMode = v SetGod(v) end)
     MakeToggle(f, "Hitbox Expand", false, function(v) B.Settings.Brutal.HitboxExpand = v SetHitbox(v) end)
     MakeSlider(f, "Hitbox Size", 2, 15, 6, function(v)
@@ -1322,10 +1370,10 @@ do
     MakeSection(f, "Protect")
     MakeToggle(f, "Anti-Kick Watch", true, function(v) B.Settings.Protect.AntiKick = v end)
     MakeToggle(f, "Auto Hop on Flag", true, function(v) B.Settings.Protect.AutoHopOnFlag = v end)
-    local hopBtnF = Instance.new("Frame")
-    hopBtnF.Size = UDim2.new(1,-4,0,32)
-    hopBtnF.BackgroundTransparency = 1
-    hopBtnF.Parent = f
+    local hopF = Instance.new("Frame")
+    hopF.Size = UDim2.new(1,-4,0,30)
+    hopF.BackgroundTransparency = 1
+    hopF.Parent = f
     local hopBtn = Instance.new("TextButton")
     hopBtn.Size = UDim2.new(1,0,1,0)
     hopBtn.BackgroundColor3 = Color3.fromRGB(30,80,60)
@@ -1333,19 +1381,19 @@ do
     hopBtn.TextColor3 = Color3.fromRGB(180,255,210)
     hopBtn.Font = Enum.Font.Code
     hopBtn.TextSize = 12
-    hopBtn.Parent = hopBtnF
+    hopBtn.Parent = hopF
     Instance.new("UICorner", hopBtn).CornerRadius = UDim.new(0,4)
     hopBtn.MouseButton1Click:Connect(SafeHop)
 
     MakeSection(f, "Credits")
     local creditF = Instance.new("Frame")
-    creditF.Size = UDim2.new(1,-4,0,55)
+    creditF.Size = UDim2.new(1,-4,0,48)
     creditF.BackgroundTransparency = 1
     creditF.Parent = f
     local credit = Instance.new("TextLabel")
     credit.Size = UDim2.new(1,0,1,0)
     credit.BackgroundTransparency = 1
-    credit.Text = "NUGI CENEL  |  @BAXTARA X CHEAT\nv3 center-aim · soft AC · anti-kick hop"
+    credit.Text = "NUGI CENEL  |  @BAXTARA X CHEAT\nv4 · visible lock · full box · ghost"
     credit.TextColor3 = Color3.fromRGB(0,190,120)
     credit.Font = Enum.Font.Code
     credit.TextSize = 11
@@ -1354,7 +1402,7 @@ do
     credit.Parent = creditF
 
     local unloadF = Instance.new("Frame")
-    unloadF.Size = UDim2.new(1,-4,0,32)
+    unloadF.Size = UDim2.new(1,-4,0,30)
     unloadF.BackgroundTransparency = 1
     unloadF.Parent = f
     local unloadBtn = Instance.new("TextButton")
@@ -1436,7 +1484,6 @@ OpenBtn.MouseButton1Click:Connect(function()
     if Main.Visible then HidePanel() else ShowPanel() end
 end)
 
--- Loops
 MakeFOV()
 MakeLine()
 WatchKick()
@@ -1449,6 +1496,7 @@ end))
 
 local function OnChar(char)
     task.wait(0.35)
+    -- only restore if user had them ON
     if B.Settings.Brutal.SpeedHack then SetSpeed(true) end
     if B.Settings.Brutal.Fly then SetFly(true) end
     if B.Settings.Brutal.Noclip then SetNoclip(true) end
@@ -1458,27 +1506,27 @@ local function OnChar(char)
     if B.Settings.Brutal.NoFallDamage then SetNoFall(true) end
     if B.Settings.Brutal.AirWalk then SetAirWalk(true) end
     if B.Settings.Brutal.HitboxExpand then SetHitbox(true) end
+    if B.Settings.Brutal.GhostMode then SetGhost(true) end
 end
 if LocalPlayer.Character then OnChar(LocalPlayer.Character) end
 AddConn(LocalPlayer.CharacterAdded:Connect(OnChar))
 
 task.spawn(function()
     local steps = {
-        {0.15, "center aim fix..."},
-        {0.35, "esp cleanup..."},
-        {0.55, "soft movement..."},
-        {0.75, "anti-kick watch..."},
-        {0.9, "finalizing..."},
+        {0.2, "visible-only aim..."},
+        {0.4, "full body box..."},
+        {0.6, "skeleton + ghost..."},
+        {0.8, "all toggles OFF..."},
         {1.0, "ready."},
     }
     for _, s in ipairs(steps) do
-        Bar:TweenSize(UDim2.new(s[1],0,1,0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+        Bar:TweenSize(UDim2.new(s[1],0,1,0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.18, true)
         LoadStat.Text = s[2]
-        task.wait(0.22)
+        task.wait(0.2)
     end
-    task.wait(0.25)
+    task.wait(0.2)
     LoadF:Destroy()
     ShowPanel()
 end)
 
-print("[BAXTARA X CHEAT v3] center-aim | soft AC | anti-kick hop | NUGI CENEL")
+print("[BAXTARA X CHEAT v4] visible lock | full box | skeleton | ghost | all OFF | NUGI CENEL")
