@@ -407,52 +407,53 @@ end
 -- PAGE: ESP
 PageBuilders.ESP = function()
     ClearContent()
-    local c = Card("ESP SETTINGS", "Player visuals", 320)
-    Toggle(c, 42, "Enable ESP", "Master toggle", false, function(v) B.Settings.ESP.Enabled=v end)
-    Toggle(c, 78, "Box ESP", "Full body box", true, function(v) B.Settings.ESP.Box=v end)
-    Toggle(c, 114, "Name", "Player names", true, function(v) B.Settings.ESP.Name=v end)
-    Toggle(c, 150, "Health Bar", "HP bar", true, function(v) B.Settings.ESP.HealthBar=v end)
-    Toggle(c, 186, "Distance", "Range text", true, function(v) B.Settings.ESP.Distance=v end)
-    Toggle(c, 222, "Tracer Line", "Bottom line", true, function(v) B.Settings.ESP.Tracer=v end)
-    Toggle(c, 258, "Skeleton ESP", "Bone lines", false, function(v) B.Settings.ESP.Skeleton=v end)
-    Toggle(c, 294, "Visible Check", "Green/red", true, function(v) B.Settings.ESP.VisibleCheck=v end)
+    local S = B.Settings.ESP
+    local c = Card("ESP SETTINGS", "Player visuals", 340)
+    Toggle(c, 42, "Enable ESP", "Master toggle", S.Enabled, function(v) B.Settings.ESP.Enabled=v end)
+    Toggle(c, 78, "Box ESP", "Full body box", S.Box, function(v) B.Settings.ESP.Box=v end)
+    Toggle(c, 114, "Name", "Player names", S.Name, function(v) B.Settings.ESP.Name=v end)
+    Toggle(c, 150, "Health Bar", "HP bar", S.HealthBar, function(v) B.Settings.ESP.HealthBar=v end)
+    Toggle(c, 186, "Distance", "Range text", S.Distance, function(v) B.Settings.ESP.Distance=v end)
+    Toggle(c, 222, "Tracer Line", "Bottom line", S.Tracer, function(v) B.Settings.ESP.Tracer=v end)
+    Toggle(c, 258, "Skeleton ESP", "Bone lines", S.Skeleton, function(v) B.Settings.ESP.Skeleton=v end)
+    Toggle(c, 294, "Visible Check", "Green/red", S.VisibleCheck, function(v) B.Settings.ESP.VisibleCheck=v end)
     local c2 = Card("COLOR", "ESP + FOV color", 140)
     Action(c2, 42, "Cyan", function() ApplyColor("Cyan") end)
     Action(c2, 74, "Purple", function() ApplyColor("Purple") end)
     Action(c2, 106, "Green", function() ApplyColor("Green") end)
     local c3 = Card("RANGE", "Max distance", 90)
-    Slider(c3, 42, "Max Distance", 100, 2000, 1000, function(v) B.Settings.ESP.MaxDistance=v end)
+    Slider(c3, 42, "Max Distance", 100, 2000, S.MaxDistance, function(v) B.Settings.ESP.MaxDistance=v end)
 end
 
--- PAGE: AIM
 PageBuilders.Aim = function()
     ClearContent()
-    local c = Card("AIM SETTINGS", "Aimbot system", 380)
-    Toggle(c, 42, "Enable Aimbot", "Master", false, function(v)
+    local S = B.Settings.Aim
+    local c = Card("AIM SETTINGS", "Aimbot system", 400)
+    Toggle(c, 42, "Enable Aimbot", "Master", S.Enabled, function(v)
         B.Settings.Aim.Enabled=v
         if v and DrawingLib and not B.Drawings.FOV then
             local f=Drawing.new("Circle"); f.Thickness=3.2; f.NumSides=64; f.Filled=false
             f.Color=B.Settings.ESP.FOVColor; f.Transparency=0.3; f.Visible=false; B.Drawings.FOV=f
         end
     end)
-    Toggle(c, 78, "Silent Aim", "Hard snap", false, function(v) B.Settings.Aim.SilentAim=v end)
-    Toggle(c, 114, "Anti Miss", "Stronger track", false, function(v) B.Settings.Aim.AntiMiss=v end)
-    Toggle(c, 150, "Aim Lock", "Lock target", false, function(v) B.Settings.Aim.AimLock=v if not v then B.LockedTarget=nil end end)
-    Toggle(c, 186, "Visibility Check", "Only visible", true, function(v) B.Settings.Aim.VisibilityCheck=v end)
-    Toggle(c, 222, "Head Aim", "Aim head", true, function(v) B.Settings.Aim.HeadAim=v; B.Settings.Aim.HitPart="Head"; if v then B.Settings.Aim.BodyAim=false end end)
-    Toggle(c, 258, "Body Aim", "Aim body", false, function(v) B.Settings.Aim.BodyAim=v; B.Settings.Aim.HitPart="Body"; if v then B.Settings.Aim.HeadAim=false end end)
-    Toggle(c, 294, "FOV Circle", "Show FOV", true, function(v) B.Settings.Aim.FOVCircle=v end)
-    Toggle(c, 330, "Team Check", "Skip teammates", true, function(v) B.Settings.Aim.TeamCheck=v end)
-    local c2 = Card("FOV / SMOOTH", "Values", 110)
-    Slider(c2, 42, "FOV Size", 40, 1000, 180, function(v) B.Settings.Aim.FOV=v end)
-    Slider(c2, 82, "Smooth x100", 5, 40, 15, function(v) B.Settings.Aim.AimSmoothing=v/100 end)
+    Toggle(c, 78, "Silent Aim", "Hard snap", S.SilentAim, function(v) B.Settings.Aim.SilentAim=v end)
+    Toggle(c, 114, "Anti Miss", "Stronger track", S.AntiMiss, function(v) B.Settings.Aim.AntiMiss=v end)
+    Toggle(c, 150, "Aim Lock", "Lock target", S.AimLock, function(v) B.Settings.Aim.AimLock=v if not v then B.LockedTarget=nil end end)
+    Toggle(c, 186, "Visibility Check", "Only visible", S.VisibilityCheck, function(v) B.Settings.Aim.VisibilityCheck=v end)
+    Toggle(c, 222, "Head Aim", "Aim head", S.HeadAim, function(v) B.Settings.Aim.HeadAim=v; B.Settings.Aim.HitPart="Head"; if v then B.Settings.Aim.BodyAim=false end end)
+    Toggle(c, 258, "Body Aim", "Aim body", S.BodyAim, function(v) B.Settings.Aim.BodyAim=v; B.Settings.Aim.HitPart="Body"; if v then B.Settings.Aim.HeadAim=false end end)
+    Toggle(c, 294, "FOV Circle", "Show FOV", S.FOVCircle, function(v) B.Settings.Aim.FOVCircle=v end)
+    Toggle(c, 330, "Team Check", "Skip teammates", S.TeamCheck, function(v) B.Settings.Aim.TeamCheck=v end)
+    local c2 = Card("FOV / SMOOTH", "Values", 120)
+    Slider(c2, 42, "FOV Size", 40, 1000, S.FOV, function(v) B.Settings.Aim.FOV=v end)
+    Slider(c2, 88, "Smooth x100", 5, 40, math.floor(S.AimSmoothing*100), function(v) B.Settings.Aim.AimSmoothing=v/100 end)
 end
 
--- PAGE: BRUTAL
 PageBuilders.Brutal = function()
     ClearContent()
-    local c = Card("MOVEMENT", "Fly speed noclip", 280)
-    Toggle(c, 42, "Fly", "Free fly", false, function(v)
+    local S = B.Settings.Brutal
+    local c = Card("MOVEMENT", "Fly speed noclip", 300)
+    Toggle(c, 42, "Fly", "Free fly", S.Fly, function(v)
         B.Settings.Brutal.Fly=v
         local char=LocalPlayer.Character; local root=char and GetRoot(char); local hum=char and char:FindFirstChildOfClass("Humanoid")
         if B.FlyBV then pcall(function() B.FlyBV:Destroy() end) B.FlyBV=nil end
@@ -463,70 +464,58 @@ PageBuilders.Brutal = function()
             B.FlyBG=Instance.new("BodyGyro"); B.FlyBG.MaxTorque=Vector3.new(9e4,9e4,9e4); B.FlyBG.P=3000; B.FlyBG.Parent=root
         elseif hum then hum.PlatformStand=false end
     end)
-    Slider(c, 78, "Fly Speed", 10, 100, 45, function(v) B.Settings.Brutal.FlySpeed=v end)
-    Toggle(c, 120, "Speed Hack", "Walk speed", false, function(v)
+    Slider(c, 78, "Fly Speed", 10, 100, S.FlySpeed, function(v) B.Settings.Brutal.FlySpeed=v end)
+    Toggle(c, 122, "Speed Hack", "Walk speed", S.SpeedHack, function(v)
         B.Settings.Brutal.SpeedHack=v
         local hum=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if hum then if v then B.OriginalWalkSpeed=hum.WalkSpeed; hum.WalkSpeed=math.clamp(B.Settings.Brutal.SpeedValue,16,40) else hum.WalkSpeed=B.OriginalWalkSpeed or 16 end end
     end)
-    Slider(c, 156, "Walk Speed", 16, 40, 24, function(v) B.Settings.Brutal.SpeedValue=v if B.Settings.Brutal.SpeedHack then local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed=v end end end)
-    Toggle(c, 198, "Infinite Jump", "Spam jump", false, function(v)
+    Slider(c, 158, "Walk Speed", 16, 40, S.SpeedValue, function(v) B.Settings.Brutal.SpeedValue=v if B.Settings.Brutal.SpeedHack then local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed=v end end end)
+    Toggle(c, 200, "Infinite Jump", "Spam jump", S.InfiniteJump, function(v)
         B.Settings.Brutal.InfiniteJump=v
         if B.JumpConn then B.JumpConn:Disconnect() B.JumpConn=nil end
         if v then B.JumpConn=UserInputService.JumpRequest:Connect(function() local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end); AddConn(B.JumpConn) end
     end)
-    Toggle(c, 234, "Noclip", "No collision", false, function(v)
+    Toggle(c, 236, "Noclip", "No collision", S.Noclip, function(v)
         B.Settings.Brutal.Noclip=v
         if B.NoclipConn then B.NoclipConn:Disconnect() B.NoclipConn=nil end
         if v then B.NoclipConn=RunService.Stepped:Connect(function() local ch=LocalPlayer.Character if not ch then return end for _,p in ipairs(ch:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end end); AddConn(B.NoclipConn) end
     end)
 
-    local h = Card("HITBOX (safe)", "Fake part — no freeze", 150)
-    Toggle(h, 42, "Hitbox Expand", "Fake ball welded (safe)", false, function(v)
+    local h = Card("HITBOX", "Enlarge Head or Body", 200)
+    Toggle(h, 42, "Hitbox Expand", "Enlarge real part", S.HitboxExpand, function(v)
         B.Settings.Brutal.HitboxExpand = v
-        if not v then
-            for _,p in pairs(B.HitboxParts) do pcall(function() if p then p:Destroy() end end) end
-            B.HitboxParts = {}
-        end
+        if not v then ClearAllHitboxes() end
     end)
-    Toggle(h, 78, "Hitbox on Head", "Attach ball to Head", false, function(v)
+    Toggle(h, 78, "Hitbox on Head", "Enlarge Head part", S.HitboxPart=="Head", function(v)
         if v then
             B.Settings.Brutal.HitboxPart = "Head"
-            -- force recreate all
-            for _,p in pairs(B.HitboxParts) do pcall(function() if p then p:Destroy() end end) end
-            B.HitboxParts = {}
+            ClearAllHitboxes()
         end
     end)
-    Toggle(h, 114, "Hitbox on Body", "Attach ball to HRP", true, function(v)
+    Toggle(h, 114, "Hitbox on Body", "Enlarge HRP (body)", S.HitboxPart=="Body", function(v)
         if v then
             B.Settings.Brutal.HitboxPart = "Body"
-            for _,p in pairs(B.HitboxParts) do pcall(function() if p then p:Destroy() end end) end
-            B.HitboxParts = {}
+            ClearAllHitboxes()
         end
     end)
-    Slider(h, 148, "Hitbox Size 2-27", 2, 27, 8, function(v)
+    Slider(h, 150, "Hitbox Size 2-27", 2, 27, S.HitboxSize, function(v)
         B.Settings.Brutal.HitboxSize = v
-        -- apply size immediately to existing
-        for _, hb in pairs(B.HitboxParts) do
-            if hb and hb.Parent then
-                pcall(function() hb.Size = Vector3.new(v, v, v) end)
-            end
-        end
     end)
 
-    local w = Card("COMBAT", "Weapon & autokill", 180)
-    Toggle(w, 42, "Anti Cooldown", "No fire delay", false, function(v) B.Settings.Brutal.AntiCooldown=v end)
-    Toggle(w, 78, "Infinite Ammo", "Ammo refill", false, function(v) B.Settings.Brutal.InfiniteAmmo=v end)
-    Toggle(w, 114, "Attack Speed 1-12", "Safe rate", false, function(v) B.Settings.Brutal.AttackSpeed=v end)
-    Slider(w, 148, "Attack Speed Val", 1, 12, 8, function(v) B.Settings.Brutal.AttackSpeedVal=v end)
-    Toggle(w, 190, "Auto Kill silent", "Snap+fire nearest", false, function(v) B.Settings.Brutal.AutoKill=v end)
+    local w = Card("COMBAT", "Weapon & autokill", 200)
+    Toggle(w, 42, "Anti Cooldown", "No fire delay", S.AntiCooldown, function(v) B.Settings.Brutal.AntiCooldown=v end)
+    Toggle(w, 78, "Infinite Ammo", "Ammo refill", S.InfiniteAmmo, function(v) B.Settings.Brutal.InfiniteAmmo=v end)
+    Toggle(w, 114, "Attack Speed 1-12", "Safe rate", S.AttackSpeed, function(v) B.Settings.Brutal.AttackSpeed=v end)
+    Slider(w, 150, "Attack Speed Val", 1, 12, S.AttackSpeedVal, function(v) B.Settings.Brutal.AttackSpeedVal=v end)
+    Toggle(w, 192, "Auto Kill silent", "Snap+fire nearest", S.AutoKill, function(v) B.Settings.Brutal.AutoKill=v end)
 end
 
--- PAGE: LOCALCFG
 PageBuilders.LocalCfg = function()
     ClearContent()
+    local S = B.Settings.LocalCfg
     local sky = Card("SKY BRANDING", "BAXTARA text in sky", 100)
-    Toggle(sky, 42, "Sky BAXTARA Text", "Ring of text around you", false, function(v)
+    Toggle(sky, 42, "Sky BAXTARA Text", "Ring of text around you", S.SkyBAXTARA, function(v)
         B.Settings.LocalCfg.SkyBAXTARA = v
         if B.SkyFolder then pcall(function() B.SkyFolder:Destroy() end) B.SkyFolder=nil end
         if v then
@@ -535,7 +524,6 @@ PageBuilders.LocalCfg = function()
             B.SkyFolder.Parent = Workspace
             local root = GetRoot(LocalPlayer.Character)
             local base = root and root.Position or Vector3.new(0, 30, 0)
-            -- large ring of billboards at high altitude
             for i = 1, 12 do
                 local ang = (i/12) * math.pi * 2
                 local part = Instance.new("Part")
@@ -548,8 +536,6 @@ PageBuilders.LocalCfg = function()
                 part.Parent = B.SkyFolder
                 local bb = Instance.new("BillboardGui")
                 bb.Size = UDim2.fromOffset(400, 60)
-                bb.StudsOffset = Vector3.new(0,0,0)
-                bb.AlwaysOnTop = false
                 bb.MaxDistance = 2000
                 bb.Parent = part
                 local tl = Instance.new("TextLabel")
@@ -557,27 +543,24 @@ PageBuilders.LocalCfg = function()
                 tl.BackgroundTransparency = 1
                 tl.Text = "BAXTARA X CHEAT"
                 tl.TextColor3 = Color3.fromRGB(0, 230, 200)
-                tl.TextStrokeColor3 = Color3.fromRGB(0,0,0)
                 tl.TextStrokeTransparency = 0.4
                 tl.Font = Enum.Font.GothamBlack
                 tl.TextScaled = true
                 tl.Parent = bb
             end
-            -- bright sky
             Lighting.Brightness = math.max(Lighting.Brightness, 2.5)
             Lighting.Ambient = Color3.fromRGB(140, 160, 180)
-            Lighting.OutdoorAmbient = Color3.fromRGB(160, 180, 200)
             Lighting.FogEnd = 1e6
             Lighting.ClockTime = 14
         end
     end)
     Action(sky, 78, "Refresh sky positions", function()
         if B.Settings.LocalCfg.SkyBAXTARA then
-            B.Settings.LocalCfg.SkyBAXTARA = false
             if B.SkyFolder then pcall(function() B.SkyFolder:Destroy() end) B.SkyFolder=nil end
+            B.Settings.LocalCfg.SkyBAXTARA = false
             task.wait(0.05)
-            -- re-enable via setting and rebuild
             B.Settings.LocalCfg.SkyBAXTARA = true
+            -- rebuild
             B.SkyFolder = Instance.new("Folder"); B.SkyFolder.Name="BAXTARA_SKY"; B.SkyFolder.Parent=Workspace
             local root = GetRoot(LocalPlayer.Character)
             local base = root and root.Position or Vector3.new(0,30,0)
@@ -589,12 +572,12 @@ PageBuilders.LocalCfg = function()
                 local tl=Instance.new("TextLabel"); tl.Size=UDim2.fromScale(1,1); tl.BackgroundTransparency=1; tl.Text="BAXTARA X CHEAT"
                 tl.TextColor3=Color3.fromRGB(0,230,200); tl.Font=Enum.Font.GothamBlack; tl.TextScaled=true; tl.Parent=bb
             end
-            Notify("SKY", "Positions refreshed")
+            Notify("SKY", "Refreshed")
         end
     end)
 
     local fr = Card("FREEZE PLAYERS", "Others frozen, you free", 120)
-    Toggle(fr, 42, "Freeze All Others", "Anchor their HRP (client)", false, function(v)
+    Toggle(fr, 42, "Freeze All Others", "Anchor their HRP (client)", S.FreezeOthers, function(v)
         B.Settings.LocalCfg.FreezeOthers = v
         if not v then
             for uid, root in pairs(B.FrozenParts) do
@@ -632,7 +615,7 @@ PageBuilders.LocalCfg = function()
         end
         Notify("TP", "TP All attempted (client)")
     end)
-    Toggle(tp, 78, "Anti Lag Self", "Low quality for you", true, function(v)
+    Toggle(tp, 78, "Anti Lag Self", "Low quality for you", S.AntiLagSelf, function(v)
         B.Settings.LocalCfg.AntiLagSelf = v
         pcall(function()
             settings().Rendering.QualityLevel = v and Enum.QualityLevel.Level01 or Enum.QualityLevel.Automatic
@@ -640,7 +623,6 @@ PageBuilders.LocalCfg = function()
     end)
 end
 
--- PAGE: SETTINGS
 PageBuilders.Settings = function()
     ClearContent()
     local th = Card("PANEL THEME", "4 styles", 180)
@@ -886,114 +868,158 @@ local function UpdateESP()
 end
 
 -- SAFE HITBOX: fake part welded, never resize real Head/HRP
+local B_OriginalSizes = {} -- [userId] = {Head=Vector3, HRP=Vector3}
+
+local function RestorePlayerSizes(userId)
+    local data = B_OriginalSizes[userId]
+    if not data then return end
+    local player = Players:GetPlayerByUserId(userId)
+    if not player then B_OriginalSizes[userId]=nil return end
+    local char = player.Character
+    if not char then return end
+    if data.Head then
+        local h = char:FindFirstChild("Head")
+        if h and h:IsA("BasePart") then pcall(function() h.Size = data.Head; h.Transparency = data.HeadTrans or 0 end) end
+    end
+    if data.HRP then
+        local r = char:FindFirstChild("HumanoidRootPart")
+        if r and r:IsA("BasePart") then pcall(function() r.Size = data.HRP; r.Transparency = data.HRPTrans or 1 end) end
+    end
+end
+
 local function ClearAllHitboxes()
+    for uid,_ in pairs(B_OriginalSizes) do
+        RestorePlayerSizes(uid)
+    end
+    B_OriginalSizes = {}
     for _,p in pairs(B.HitboxParts) do
-        pcall(function()
-            if p and p.Parent then p:Destroy() end
-        end)
+        pcall(function() if p and p.Parent then p:Destroy() end end)
     end
     B.HitboxParts = {}
 end
 
-local function MakeHitbox(player, attach, size)
-    if not attach or not attach.Parent then return nil end
-    local char = attach.Parent
-    if not char then return nil end
-    -- remove old for this player
-    if B.HitboxParts[player.UserId] then
-        pcall(function() B.HitboxParts[player.UserId]:Destroy() end)
-        B.HitboxParts[player.UserId] = nil
-    end
-    local hb = Instance.new("Part")
-    hb.Name = "BX_Hitbox"
-    hb.Shape = Enum.PartType.Ball
-    hb.Material = Enum.Material.ForceField
-    hb.Color = Color3.fromRGB(255, 60, 60)
-    hb.Transparency = 0.45
-    hb.Size = Vector3.new(size, size, size)
-    hb.Massless = true
-    hb.CanCollide = false
-    hb.CanQuery = true
-    hb.CanTouch = true
-    hb.Anchored = false
-    hb.CastShadow = false
-    hb.CFrame = attach.CFrame
-    hb.Parent = char
-    -- Weld so it follows without breaking physics of original part
-    local weld = Instance.new("Weld")
-    weld.Name = "BX_Weld"
-    weld.Part0 = attach
-    weld.Part1 = hb
-    weld.C0 = CFrame.new()
-    weld.C1 = CFrame.new()
-    weld.Parent = hb
-    B.HitboxParts[player.UserId] = hb
-    return hb
-end
-
 local function UpdateHitbox()
     if not B.Settings.Brutal.HitboxExpand then
-        if next(B.HitboxParts) then ClearAllHitboxes() end
+        if next(B_OriginalSizes) or next(B.HitboxParts) then
+            ClearAllHitboxes()
+        end
         return
     end
     local size = math.clamp(tonumber(B.Settings.Brutal.HitboxSize) or 8, 2, 27)
-    local useHead = (B.Settings.Brutal.HitboxPart == "Head")
+    local mode = B.Settings.Brutal.HitboxPart -- "Head" or "Body"
     local alive = {}
+
     for _, p in ipairs(Players:GetPlayers()) do
         if p == LocalPlayer then continue end
         local char = GetChar(p)
         if not IsAlive(char) then continue end
-        local attach = useHead and GetHead(char) or GetRoot(char)
-        if not attach then continue end
+        local head = GetHead(char)
+        local root = GetRoot(char)
+        if not root then continue end
         alive[p.UserId] = true
-        local hb = B.HitboxParts[p.UserId]
-        local needNew = false
-        if not hb or not hb.Parent then
-            needNew = true
-        else
-            -- re-attach if parent changed or weld broken
-            local weld = hb:FindFirstChild("BX_Weld")
-            if not weld or weld.Part0 ~= attach then
-                needNew = true
-            end
-        end
-        if needNew then
-            MakeHitbox(p, attach, size)
-            hb = B.HitboxParts[p.UserId]
-        end
-        if hb and hb.Parent then
-            -- force size every frame so slider always works
-            local target = Vector3.new(size, size, size)
-            if (hb.Size - target).Magnitude > 0.05 then
-                hb.Size = target
-            end
-            if B.CurrentTarget == p then
-                hb.Color = Color3.fromRGB(255, 30, 30)
-                hb.Transparency = 0.35
-            else
-                hb.Color = Color3.fromRGB(255, 90, 90)
-                hb.Transparency = 0.5
-            end
-            -- keep welded position
-            -- weld keeps alignment; no forced CFrame needed
-        end
-    end
-    for uid, hb in pairs(B.HitboxParts) do
-        if not alive[uid] then
-            pcall(function() if hb then hb:Destroy() end end)
-            B.HitboxParts[uid] = nil
-        end
-    end
-end
 
-local function UpdateFreeze()
-    if not B.Settings.LocalCfg.FreezeOthers then return end
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p==LocalPlayer then continue end
-        local root=GetRoot(GetChar(p))
-        if root then
-            pcall(function() root.Anchored=true end)
-            B.FrozenParts[p.UserId]=root
+        -- store originals once
+        if not B_OriginalSizes[p.UserId] then
+            B_OriginalSizes[p.UserId] = {}
+            if head then
+                B_OriginalSizes[p.UserId].Head = head.Size
+                B_OriginalSizes[p.UserId].HeadTrans = head.Transparency
+            end
+            if root then
+                B_OriginalSizes[p.UserId].HRP = root.Size
+                B_OriginalSizes[p.UserId].HRPTrans = root.Transparency
+            end
+        end
+
+        local targetSize = Vector3.new(size, size, size)
+
+        if mode == "Head" and head then
+            -- enlarge HEAD only; restore HRP if was enlarged
+            pcall(function()
+                head.Size = targetSize
+                head.Transparency = 0.4
+                head.CanCollide = false
+                head.Massless = true
+            end)
+            -- restore body if we switched from body mode
+            if B_OriginalSizes[p.UserId].HRP and root then
+                pcall(function()
+                    root.Size = B_OriginalSizes[p.UserId].HRP
+                    root.Transparency = B_OriginalSizes[p.UserId].HRPTrans or 1
+                end)
+            end
+            -- visual marker ball (optional, non-blocking)
+            local marker = B.HitboxParts[p.UserId]
+            if not marker or not marker.Parent then
+                marker = Instance.new("Part")
+                marker.Name = "BX_HBMark"
+                marker.Shape = Enum.PartType.Ball
+                marker.Size = targetSize
+                marker.Transparency = 0.7
+                marker.Color = Color3.fromRGB(255, 50, 50)
+                marker.Material = Enum.Material.ForceField
+                marker.CanCollide = false
+                marker.CanQuery = false
+                marker.Massless = true
+                marker.Anchored = false
+                marker.Parent = char
+                local w = Instance.new("Weld")
+                w.Part0 = head
+                w.Part1 = marker
+                w.Parent = marker
+                B.HitboxParts[p.UserId] = marker
+            else
+                marker.Size = targetSize
+            end
+        else
+            -- BODY mode: enlarge HumanoidRootPart
+            if root then
+                pcall(function()
+                    root.Size = targetSize
+                    root.Transparency = 0.5
+                    root.CanCollide = false
+                    root.Massless = true
+                end)
+            end
+            -- restore head if switched
+            if B_OriginalSizes[p.UserId].Head and head then
+                pcall(function()
+                    head.Size = B_OriginalSizes[p.UserId].Head
+                    head.Transparency = B_OriginalSizes[p.UserId].HeadTrans or 0
+                end)
+            end
+            local marker = B.HitboxParts[p.UserId]
+            if not marker or not marker.Parent then
+                marker = Instance.new("Part")
+                marker.Name = "BX_HBMark"
+                marker.Shape = Enum.PartType.Ball
+                marker.Size = targetSize
+                marker.Transparency = 0.7
+                marker.Color = Color3.fromRGB(255, 80, 80)
+                marker.Material = Enum.Material.ForceField
+                marker.CanCollide = false
+                marker.CanQuery = false
+                marker.Massless = true
+                marker.Parent = char
+                local w = Instance.new("Weld")
+                w.Part0 = root
+                w.Part1 = marker
+                w.Parent = marker
+                B.HitboxParts[p.UserId] = marker
+            else
+                marker.Size = targetSize
+            end
+        end
+    end
+
+    for uid, _ in pairs(B_OriginalSizes) do
+        if not alive[uid] then
+            RestorePlayerSizes(uid)
+            B_OriginalSizes[uid] = nil
+            if B.HitboxParts[uid] then
+                pcall(function() B.HitboxParts[uid]:Destroy() end)
+                B.HitboxParts[uid] = nil
+            end
         end
     end
 end
