@@ -68,10 +68,18 @@ B.Settings = B.Settings or {
         SuperJump=false, SuperJumpPower=80, GhostMode=false, GodMode=false,
         HitboxExpand=false, HitboxSize=8, HitboxPart="Body", HitboxRedAim=true,
         AntiCooldown=false, InfiniteAmmo=false, AutoShoot=false, AttackSpeed=false, AttackSpeedVal=8,
-        AutoKill=false,
+        AutoKill=false, FlyKillAll=false, SpinBot=false, SpinSpeed=40,
     },
     LocalCfg = {
         SkyBAXTARA=false, FreezeOthers=false, AntiLagSelf=true, ServerLag=false,
+        SelfTag=false, SelfTagText="BAXTARA", SelfTagColor="Gold", SelfTagRainbow=false,
+    },
+    VIP = {
+        Unlocked=false, Injected=false,
+        MagicBullet=false, KillAura=false, VoidWalk=false, NinjaDash=false, WallCling=false,
+        BackstabTP=false, FakeDisconnect=false, RealityWarp=false, MeteorRain=false,
+        AuraParticle=false, GoldESP=false, StreamerMode=false, SpoofName=false,
+        ChatTag=false, DeathEffect=false, SkyVIP=false,
     },
     Visual = { FullBright=false, AntiLag=false },
     Protect = { AntiKick=true, AutoHopOnFlag=true, SoftCamera=true },
@@ -295,7 +303,7 @@ local Content = New("ScrollingFrame", {
 local ContentLayout = New("UIListLayout", {Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}, Content)
 New("UIPadding", {PaddingBottom=UDim.new(0,6), PaddingRight=UDim.new(0,4)}, Content)
 
-local SideNames = {"Home","ESP","Aim","Brutal","LocalCfg","Settings"}
+local SideNames = {"Home","ESP","Aim","Brutal","LocalCfg","VIP","Settings"}
 local TabButtons, CurrentTab = {}, "Home"
 local PageBuilders = {}
 
@@ -509,6 +517,20 @@ PageBuilders.Brutal = function()
     Toggle(w, 114, "Attack Speed 1-12", "Safe rate", S.AttackSpeed, function(v) B.Settings.Brutal.AttackSpeed=v end)
     Slider(w, 150, "Attack Speed Val", 1, 12, S.AttackSpeedVal, function(v) B.Settings.Brutal.AttackSpeedVal=v end)
     Toggle(w, 192, "Auto Kill silent", "Snap+fire nearest", S.AutoKill, function(v) B.Settings.Brutal.AutoKill=v end)
+
+    local fk = Card("FLY KILL ALL", "Fly up + TP enemies + shoot", 100)
+    Toggle(fk, 42, "Fly Kill All", "Hover + pull enemies + auto fire", S.FlyKillAll, function(v)
+        B.Settings.Brutal.FlyKillAll = v
+        if not v then
+            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.PlatformStand = false end
+            if B.FlyKillBV then pcall(function() B.FlyKillBV:Destroy() end) B.FlyKillBV = nil end
+        end
+    end)
+
+    local sp = Card("SPIN BOT", "Character spin (free)", 100)
+    Toggle(sp, 42, "Spin Bot", "Rotate character", S.SpinBot, function(v) B.Settings.Brutal.SpinBot = v end)
+    Slider(sp, 78, "Spin Speed 1-120", 1, 120, S.SpinSpeed or 40, function(v) B.Settings.Brutal.SpinSpeed = v end)
 end
 
 PageBuilders.LocalCfg = function()
@@ -621,6 +643,53 @@ PageBuilders.LocalCfg = function()
             settings().Rendering.QualityLevel = v and Enum.QualityLevel.Level01 or Enum.QualityLevel.Automatic
         end)
     end)
+
+    local tag = Card("SELF NAME TAG", "Tag di Avatar kamu saja", 180)
+    Toggle(tag, 42, "Enable Self Tag", "Billboard di atas kepala", S.SelfTag, function(v)
+        B.Settings.LocalCfg.SelfTag = v
+        if not v and B.SelfTagGui then pcall(function() B.SelfTagGui:Destroy() end) B.SelfTagGui = nil end
+    end)
+    Action(tag, 78, "Text: BAXTARA", function() B.Settings.LocalCfg.SelfTagText = "BAXTARA"; Notify("TAG", "Text = BAXTARA") end)
+    Action(tag, 110, "Text: VIP KING", function() B.Settings.LocalCfg.SelfTagText = "VIP KING"; Notify("TAG", "Text = VIP KING") end)
+    Action(tag, 142, "Color Gold / Rainbow toggle", function()
+        B.Settings.LocalCfg.SelfTagRainbow = not B.Settings.LocalCfg.SelfTagRainbow
+        if not B.Settings.LocalCfg.SelfTagRainbow then B.Settings.LocalCfg.SelfTagColor = "Gold" end
+        Notify("TAG", B.Settings.LocalCfg.SelfTagRainbow and "Rainbow ON" or "Gold")
+    end)
+end
+
+PageBuilders.VIP = function()
+    ClearContent()
+    local V = B.Settings.VIP
+    if not V.Unlocked then
+        local lock = Card("VIP LOCKED", "Masukkan key VIP untuk unlock", 200)
+        New("TextLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.new(1,-24,0,40), BackgroundTransparency=1, Text="Fitur dewa terkunci.\nKey VIP diperlukan.", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, lock)
+        local box = New("TextBox", {Position=UDim2.fromOffset(12,100), Size=UDim2.new(1,-24,0,32), BackgroundColor3=T.Element, Text="", PlaceholderText="ENTER VIP KEY", PlaceholderColor3=T.Muted, TextColor3=T.White, Font=Enum.Font.Code, TextSize=12, ZIndex=13}, lock)
+        Round(box, 8)
+        Action(lock, 140, "VERIFY VIP KEY", function()
+            local k = (box.Text or ""):gsub("^%s+",""):gsub("%s+$","")
+            if k:upper() == "NUGI" then
+                B.Settings.VIP.Unlocked = true
+                getgenv().BAXTARA_VIP = true
+                Notify("VIP", "Access granted — Inject available")
+                SelectTab("VIP")
+            else
+                Notify("VIP", "Invalid VIP key")
+            end
+        end)
+        return
+    end
+
+    local inj = Card("VIP INJECT", "Panel premium terpisah", 120)
+    New("TextLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.new(1,-24,0,20), BackgroundTransparency=1, Text=V.Injected and "Status: INJECTED" or "Status: Ready to inject", TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, inj)
+    Action(inj, 78, V.Injected and "REOPEN VIP PANEL" or "INJECT VIP PANEL", function()
+        B.Settings.VIP.Injected = true
+        if B.OpenVIPPanel then B.OpenVIPPanel() end
+        Notify("VIP", "Panel injected")
+    end)
+
+    local note = Card("INFO", "Key VIP: NUGI", 70)
+    New("TextLabel", {Position=UDim2.fromOffset(12,42), Size=UDim2.new(1,-24,0,20), BackgroundTransparency=1, Text="Setelah inject, panel VIP muncul terpisah.", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, note)
 end
 
 PageBuilders.Settings = function()
@@ -1084,6 +1153,73 @@ AddConn(RunService.Heartbeat:Connect(function()
     if not B.Unlocked then return end
     if B.Settings.Brutal.AntiCooldown or B.Settings.Brutal.InfiniteAmmo or B.Settings.Brutal.AttackSpeed then PatchWeapon() end
     if B.Settings.Brutal.AutoKill then DoAutoKill() end
+    if B.Settings.Brutal.FlyKillAll then B.DoFlyKillAll() end
+    if B.Settings.Brutal.SpinBot then B.DoSpinBot() end
+    if B.EnsureSelfTag then B.EnsureSelfTag() end
+    -- VIP Kill Aura
+    if B.Settings.VIP.Unlocked and B.Settings.VIP.KillAura then
+        local my = GetRoot(LocalPlayer.Character)
+        if my then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and TeamOK(p) then
+                    local char = GetChar(p)
+                    local hum = char and char:FindFirstChildOfClass("Humanoid")
+                    local root = GetRoot(char)
+                    if hum and root and (my.Position - root.Position).Magnitude < 25 then
+                        pcall(function() hum:TakeDamage(5) end)
+                    end
+                end
+            end
+        end
+    end
+    -- VIP Magic bullet = force silent + aim
+    if B.Settings.VIP.Unlocked and B.Settings.VIP.MagicBullet then
+        B.Settings.Aim.SilentAim = true
+        local t = GetNearestEnemy()
+        if t then AimAt(t) end
+        local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if tool then pcall(function() tool:Activate() end) end
+    end
+    -- Fake disconnect visual
+    if B.Settings.VIP.Unlocked and B.Settings.VIP.FakeDisconnect then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                local r = GetRoot(GetChar(p))
+                if r then pcall(function() r.Anchored = true end) end
+            end
+        end
+    end
+    -- Gold ESP override
+    if B.Settings.VIP.Unlocked and B.Settings.VIP.GoldESP then
+        B.Settings.ESP.VisibleColor = Color3.fromRGB(255, 215, 0)
+        B.Settings.ESP.BoxColor = Color3.fromRGB(255, 200, 50)
+        B.Settings.ESP.TracerColor = Color3.fromRGB(255, 220, 80)
+    end
+    -- Aura particle
+    if B.Settings.VIP.Unlocked and B.Settings.VIP.AuraParticle then
+        local root = GetRoot(LocalPlayer.Character)
+        if root and (not B.AuraPart or not B.AuraPart.Parent) then
+            local a = Instance.new("Part")
+            a.Name = "BX_Aura"
+            a.Shape = Enum.PartType.Ball
+            a.Size = Vector3.new(6, 6, 6)
+            a.Transparency = 0.7
+            a.Color = Color3.fromRGB(255, 200, 50)
+            a.Material = Enum.Material.ForceField
+            a.CanCollide = false
+            a.Massless = true
+            a.Anchored = false
+            a.Parent = LocalPlayer.Character
+            local w = Instance.new("Weld")
+            w.Part0 = root
+            w.Part1 = a
+            w.Parent = a
+            B.AuraPart = a
+        end
+    elseif B.AuraPart then
+        pcall(function() B.AuraPart:Destroy() end)
+        B.AuraPart = nil
+    end
     if B.StatsLabel then
         local fps=60; pcall(function() fps=math.floor(1/RunService.RenderStepped:Wait()) end)
         local el=math.floor(tick()-B.SessionStart)
@@ -1147,6 +1283,307 @@ local OpenBtn=New("TextButton", {Size=UDim2.fromOffset(46,46), Position=UDim2.ne
 Round(OpenBtn, 23)
 OpenBtn.MouseButton1Click:Connect(function() if Main.Visible then HidePanel() else ShowPanel() end end)
 
+
+-- ========== VIP PANEL + SYSTEMS ==========
+B.FlyKillBV = nil
+B.SelfTagGui = nil
+B.VIPPanel = nil
+B.SpinAngle = 0
+B.VIPChatMessages = {}
+
+function B.EnsureSelfTag()
+    if not B.Settings.LocalCfg.SelfTag then
+        if B.SelfTagGui then pcall(function() B.SelfTagGui:Destroy() end) B.SelfTagGui=nil end
+        return
+    end
+    local char = LocalPlayer.Character
+    local head = char and GetHead(char)
+    if not head then return end
+    if not B.SelfTagGui or not B.SelfTagGui.Parent then
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "BX_SelfTag"
+        bb.Size = UDim2.fromOffset(200, 40)
+        bb.StudsOffset = Vector3.new(0, 2.5, 0)
+        bb.AlwaysOnTop = true
+        bb.MaxDistance = 200
+        bb.Parent = head
+        local tl = Instance.new("TextLabel")
+        tl.Name = "Tag"
+        tl.Size = UDim2.fromScale(1,1)
+        tl.BackgroundTransparency = 1
+        tl.Text = B.Settings.LocalCfg.SelfTagText or "BAXTARA"
+        tl.Font = Enum.Font.GothamBlack
+        tl.TextScaled = true
+        tl.TextStrokeTransparency = 0.4
+        tl.Parent = bb
+        B.SelfTagGui = bb
+    end
+    local tl = B.SelfTagGui:FindFirstChild("Tag")
+    if tl then
+        tl.Text = B.Settings.LocalCfg.SelfTagText or "BAXTARA"
+        if B.Settings.LocalCfg.SelfTagRainbow then
+            local h = (tick() * 0.4) % 1
+            tl.TextColor3 = Color3.fromHSV(h, 1, 1)
+        else
+            tl.TextColor3 = Color3.fromRGB(255, 215, 0)
+        end
+    end
+end
+
+function B.DoFlyKillAll()
+    if not B.Settings.Brutal.FlyKillAll then return end
+    local char = LocalPlayer.Character
+    local root = char and GetRoot(char)
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
+    hum.PlatformStand = true
+    if not B.FlyKillBV or not B.FlyKillBV.Parent then
+        if B.FlyKillBV then pcall(function() B.FlyKillBV:Destroy() end) end
+        B.FlyKillBV = Instance.new("BodyVelocity")
+        B.FlyKillBV.MaxForce = Vector3.new(9e4, 9e4, 9e4)
+        B.FlyKillBV.Velocity = Vector3.zero
+        B.FlyKillBV.Parent = root
+    end
+    -- hover high
+    local hover = root.Position + Vector3.new(0, 2, 0)
+    if root.Position.Y < (Workspace.FallenPartsDestroyHeight + 500) then
+        -- lift to ~40 studs above current ground-ish
+        B.FlyKillBV.Velocity = Vector3.new(0, 35, 0)
+        if root.Position.Y > 80 then
+            B.FlyKillBV.Velocity = Vector3.zero
+        end
+    end
+    -- TP enemies in front
+    local front = root.CFrame * CFrame.new(0, 0, -12)
+    local i = 0
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and TeamOK(p) then
+            local er = GetRoot(GetChar(p))
+            if er and IsAlive(GetChar(p)) then
+                i = i + 1
+                pcall(function()
+                    er.CFrame = front * CFrame.new((i % 4) * 3 - 4.5, 0, math.floor(i / 4) * 3)
+                end)
+            end
+        end
+    end
+    -- auto shoot
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool then pcall(function() tool:Activate() end) end
+end
+
+function B.DoSpinBot()
+    if not B.Settings.Brutal.SpinBot then return end
+    local root = GetRoot(LocalPlayer.Character)
+    if not root then return end
+    local spd = math.clamp(B.Settings.Brutal.SpinSpeed or 40, 1, 120)
+    B.SpinAngle = (B.SpinAngle + spd * 0.05) % 360
+    local pos = root.Position
+    root.CFrame = CFrame.new(pos) * CFrame.Angles(0, math.rad(B.SpinAngle), 0)
+end
+
+-- VIP Panel builder
+function B.OpenVIPPanel()
+    if B.VIPPanel and B.VIPPanel.Parent then
+        B.VIPPanel.Visible = true
+        return
+    end
+    local vp = New("Frame", {
+        Name = "VIPPanel",
+        Size = UDim2.fromOffset(420, 480),
+        Position = UDim2.new(0.5, -210, 0.5, -240),
+        BackgroundColor3 = Color3.fromRGB(8, 6, 18),
+        BorderSizePixel = 0,
+        ZIndex = 40,
+        ClipsDescendants = true,
+    }, ScreenGui)
+    Round(vp, 14)
+    local vst = New("UIStroke", {Color = Color3.fromRGB(255, 200, 50), Thickness = 1.5, Transparency = 0.2}, vp)
+    -- gold pulse
+    task.spawn(function()
+        while vp.Parent do
+            TweenService:Create(vst, TweenInfo.new(1.2), {Color = Color3.fromRGB(255, 230, 120)}):Play()
+            task.wait(1.2)
+            if not vp.Parent then break end
+            TweenService:Create(vst, TweenInfo.new(1.2), {Color = Color3.fromRGB(255, 180, 40)}):Play()
+            task.wait(1.2)
+        end
+    end)
+
+    local vh = New("Frame", {Size = UDim2.new(1,0,0,44), BackgroundColor3 = Color3.fromRGB(20, 14, 40), BorderSizePixel = 0, ZIndex = 41}, vp)
+    Round(vh, 14)
+    New("TextLabel", {Position = UDim2.fromOffset(12, 6), Size = UDim2.fromOffset(280, 20), BackgroundTransparency = 1, Text = "BAXTARA VIP  ·  PREMIUM", TextColor3 = Color3.fromRGB(255, 215, 0), Font = Enum.Font.GothamBlack, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 42}, vh)
+    New("TextLabel", {Position = UDim2.fromOffset(12, 24), Size = UDim2.fromOffset(200, 14), BackgroundTransparency = 1, Text = "INJECTED MODULE", TextColor3 = Color3.fromRGB(180, 160, 100), Font = Enum.Font.Code, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 42}, vh)
+    local vclose = New("TextButton", {Position = UDim2.new(1, -36, 0.5, -12), Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Color3.fromRGB(60, 20, 30), Text = "X", TextColor3 = Color3.fromRGB(255, 120, 120), Font = Enum.Font.GothamBold, TextSize = 12, ZIndex = 42, AutoButtonColor = false}, vh)
+    Round(vclose, 6)
+    vclose.MouseButton1Click:Connect(function() vp.Visible = false end)
+
+    local scroll = New("ScrollingFrame", {
+        Position = UDim2.fromOffset(8, 50),
+        Size = UDim2.new(1, -16, 1, -58),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = Color3.fromRGB(255, 200, 50),
+        CanvasSize = UDim2.new(0,0,0,900),
+        ZIndex = 41,
+    }, vp)
+
+    local function VCard(title, y, h)
+        local c = New("Frame", {Position = UDim2.fromOffset(0, y), Size = UDim2.new(1, -4, 0, h), BackgroundColor3 = Color3.fromRGB(18, 12, 32), BorderSizePixel = 0, ZIndex = 42}, scroll)
+        Round(c, 10)
+        New("TextLabel", {Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -16, 0, 16), BackgroundTransparency = 1, Text = title, TextColor3 = Color3.fromRGB(255, 210, 80), Font = Enum.Font.GothamBold, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 43}, c)
+        return c
+    end
+    local function VToggle(parent, y, title, key)
+        local row = New("Frame", {Position = UDim2.fromOffset(8, y), Size = UDim2.new(1, -16, 0, 28), BackgroundTransparency = 1, ZIndex = 43}, parent)
+        New("TextLabel", {Size = UDim2.new(1, -50, 1, 0), BackgroundTransparency = 1, Text = title, TextColor3 = Color3.fromRGB(230, 220, 200), Font = Enum.Font.Gotham, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 44}, row)
+        local sw = New("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(36, 18), BackgroundColor3 = B.Settings.VIP[key] and Color3.fromRGB(255, 200, 50) or Color3.fromRGB(50, 45, 60), ZIndex = 44}, row)
+        Round(sw, 18)
+        local dot = New("Frame", {Position = B.Settings.VIP[key] and UDim2.new(1, -16, 0.5, -6) or UDim2.new(0, 2, 0.5, -6), Size = UDim2.fromOffset(12, 12), BackgroundColor3 = Color3.fromRGB(255, 255, 255), ZIndex = 45}, sw)
+        Round(dot, 12)
+        local btn = New("TextButton", {Size = UDim2.fromScale(1,1), BackgroundTransparency = 1, Text = "", ZIndex = 46}, sw)
+        btn.MouseButton1Click:Connect(function()
+            B.Settings.VIP[key] = not B.Settings.VIP[key]
+            local on = B.Settings.VIP[key]
+            TweenService:Create(sw, TweenInfo.new(0.12), {BackgroundColor3 = on and Color3.fromRGB(255, 200, 50) or Color3.fromRGB(50, 45, 60)}):Play()
+            TweenService:Create(dot, TweenInfo.new(0.12), {Position = on and UDim2.new(1, -16, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)}):Play()
+            if key == "StreamerMode" and on then
+                Main.Visible = false
+                Notify("VIP", "Streamer Mode — panel hidden (RightCtrl to show main)")
+            end
+            if key == "RealityWarp" then
+                if on then
+                    Lighting.Ambient = Color3.fromRGB(255, 0, 200)
+                    Lighting.ColorShift_Top = Color3.fromRGB(0, 255, 200)
+                    Lighting.Brightness = 3
+                else
+                    Lighting.Ambient = Color3.fromRGB(140, 140, 140)
+                    Lighting.ColorShift_Top = Color3.new(0,0,0)
+                    Lighting.Brightness = 1
+                end
+            end
+            if key == "SkyVIP" and on then
+                Lighting.ClockTime = 0
+                Lighting.Brightness = 1.5
+                Lighting.Ambient = Color3.fromRGB(20, 10, 40)
+                Lighting.OutdoorAmbient = Color3.fromRGB(40, 20, 80)
+            end
+        end)
+    end
+
+    local c1 = VCard("COMBAT DEWA", 0, 130)
+    VToggle(c1, 28, "Magic Bullet / Silent", "MagicBullet")
+    VToggle(c1, 56, "Kill Aura", "KillAura")
+    VToggle(c1, 84, "Backstab Teleport", "BackstabTP")
+
+    local c2 = VCard("MOVEMENT NINJA", 140, 150)
+    VToggle(c2, 28, "Void Walk", "VoidWalk")
+    VToggle(c2, 56, "Ninja Dash (press Q)", "NinjaDash")
+    VToggle(c2, 84, "Wall Cling", "WallCling")
+    VToggle(c2, 112, "Full Fly boost", "VoidWalk") -- alias ok
+
+    local c3 = VCard("TROLL / CHAOS", 300, 150)
+    VToggle(c3, 28, "Fake Disconnect (local)", "FakeDisconnect")
+    VToggle(c3, 56, "Reality Warp", "RealityWarp")
+    VToggle(c3, 84, "Meteor Rain (FX)", "MeteorRain")
+    VToggle(c3, 112, "Aura Particle", "AuraParticle")
+
+    local c4 = VCard("KOSMETIK VIP", 460, 130)
+    VToggle(c4, 28, "Gold / Rainbow ESP", "GoldESP")
+    VToggle(c4, 56, "VIP Sky Night", "SkyVIP")
+    VToggle(c4, 84, "Chat Tag [VIP]", "ChatTag")
+
+    local c5 = VCard("STREAMER / UTILITY", 600, 100)
+    VToggle(c5, 28, "Streamer Mode (hide UI)", "StreamerMode")
+    VToggle(c5, 56, "Spoof Name local", "SpoofName")
+
+    -- VIP CHAT
+    local c6 = VCard("VIP GLOBAL CHAT", 710, 160)
+    local chatBox = New("TextBox", {Position = UDim2.fromOffset(8, 30), Size = UDim2.new(1, -16, 0, 24), BackgroundColor3 = Color3.fromRGB(30, 22, 50), Text = "", PlaceholderText = "Pesan VIP...", PlaceholderColor3 = Color3.fromRGB(120, 100, 140), TextColor3 = Color3.fromRGB(255, 240, 200), Font = Enum.Font.Code, TextSize = 11, ZIndex = 44}, c6)
+    Round(chatBox, 6)
+    local chatLog = New("TextLabel", {Position = UDim2.fromOffset(8, 58), Size = UDim2.new(1, -16, 0, 70), BackgroundColor3 = Color3.fromRGB(12, 8, 24), Text = "[VIP] Chat lokal aktif.\nSesama BAXTARA di device ini terlihat.", TextColor3 = Color3.fromRGB(200, 180, 120), Font = Enum.Font.Code, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true, ZIndex = 44}, c6)
+    Round(chatLog, 6)
+    local sendBtn = New("TextButton", {Position = UDim2.fromOffset(8, 132), Size = UDim2.new(1, -16, 0, 22), BackgroundColor3 = Color3.fromRGB(180, 140, 40), Text = "KIRIM", TextColor3 = Color3.fromRGB(20, 15, 5), Font = Enum.Font.GothamBold, TextSize = 10, ZIndex = 44, AutoButtonColor = false}, c6)
+    Round(sendBtn, 6)
+    sendBtn.MouseButton1Click:Connect(function()
+        local msg = chatBox.Text
+        if msg and #msg > 0 then
+            local line = string.format("[%s]: %s", LocalPlayer.Name, msg)
+            table.insert(B.VIPChatMessages, line)
+            if #B.VIPChatMessages > 8 then table.remove(B.VIPChatMessages, 1) end
+            chatLog.Text = table.concat(B.VIPChatMessages, "\n")
+            chatBox.Text = ""
+            -- try MessagingService for cross-server (may fail on client)
+            pcall(function()
+                local MS = game:GetService("MessagingService")
+                MS:PublishAsync("BAXTARA_VIP_CHAT", {from = LocalPlayer.Name, text = msg})
+            end)
+        end
+    end)
+    pcall(function()
+        local MS = game:GetService("MessagingService")
+        MS:SubscribeAsync("BAXTARA_VIP_CHAT", function(data)
+            local p = data.Data
+            if p and p.from and p.text then
+                table.insert(B.VIPChatMessages, string.format("[%s]: %s", p.from, p.text))
+                if #B.VIPChatMessages > 8 then table.remove(B.VIPChatMessages, 1) end
+                if chatLog and chatLog.Parent then chatLog.Text = table.concat(B.VIPChatMessages, "\n") end
+            end
+        end)
+    end)
+
+    -- drag VIP panel
+    local vd, vs, vp0 = false, nil, nil
+    vh.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            vd = true; vs = i.Position; vp0 = vp.Position
+        end
+    end)
+    vh.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then vd = false end
+    end)
+    AddConn(UserInputService.InputChanged:Connect(function(i)
+        if vd and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - vs
+            vp.Position = UDim2.new(vp0.X.Scale, vp0.X.Offset + d.X, vp0.Y.Scale, vp0.Y.Offset + d.Y)
+        end
+    end))
+
+    B.VIPPanel = vp
+    -- entry anim
+    vp.Size = UDim2.fromOffset(420, 0)
+    TweenService:Create(vp, TweenInfo.new(0.35, Enum.EasingStyle.Back), {Size = UDim2.fromOffset(420, 480)}):Play()
+end
+
+-- Ninja dash key
+AddConn(UserInputService.InputBegan:Connect(function(input, gp)
+    if gp or not B.Settings.VIP.Unlocked then return end
+    if B.Settings.VIP.NinjaDash and input.KeyCode == Enum.KeyCode.Q then
+        local root = GetRoot(LocalPlayer.Character)
+        if root then
+            root.CFrame = root.CFrame + Camera.CFrame.LookVector * 40
+        end
+    end
+    if B.Settings.VIP.BackstabTP and input.KeyCode == Enum.KeyCode.E then
+        local best, bd = nil, 999
+        local my = GetRoot(LocalPlayer.Character)
+        if not my then return end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                local r = GetRoot(GetChar(p))
+                if r then
+                    local d = (my.Position - r.Position).Magnitude
+                    if d < bd then bd = d; best = r end
+                end
+            end
+        end
+        if best then
+            my.CFrame = best.CFrame * CFrame.new(0, 0, 3)
+        end
+    end
+end))
+
 local function AfterUnlock()
     B.Unlocked=true
     SaveKeyUnlock()
@@ -1183,5 +1620,11 @@ if LoadKeyUnlock() then
         AfterUnlock()
     end)
 end
+if getgenv().BAXTARA_VIP == true then
+    B.Settings.VIP.Unlocked = true
+end
+
+print("[BAXTARA X CHEAT] +FlyKillAll +SpinBot +SelfTag +VIP(NUGI) panel/chat")
+
 
 print("[BAXTARA X CHEAT v5.5] Cyber UI | Safe hitbox | Freeze | Key save | Sky fix | NUGI CENEL")
