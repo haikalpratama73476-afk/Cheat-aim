@@ -482,10 +482,37 @@ PageBuilders.Brutal = function()
     end)
 
     local h = Card("HITBOX (safe)", "Fake part — no freeze", 150)
-    Toggle(h, 42, "Hitbox Expand", "Extra hit part", false, function(v) B.Settings.Brutal.HitboxExpand=v if not v then for _,p in pairs(B.HitboxParts) do pcall(function() p:Destroy() end) end B.HitboxParts={} end end)
-    Toggle(h, 78, "Hitbox on Head", "Attach to head", false, function(v) if v then B.Settings.Brutal.HitboxPart="Head" end end)
-    Toggle(h, 114, "Hitbox on Body", "Attach to HRP", true, function(v) if v then B.Settings.Brutal.HitboxPart="Body" end end)
-    Slider(h, 148, "Hitbox Size 2-27", 2, 27, 8, function(v) B.Settings.Brutal.HitboxSize=v end)
+    Toggle(h, 42, "Hitbox Expand", "Fake ball welded (safe)", false, function(v)
+        B.Settings.Brutal.HitboxExpand = v
+        if not v then
+            for _,p in pairs(B.HitboxParts) do pcall(function() if p then p:Destroy() end end) end
+            B.HitboxParts = {}
+        end
+    end)
+    Toggle(h, 78, "Hitbox on Head", "Attach ball to Head", false, function(v)
+        if v then
+            B.Settings.Brutal.HitboxPart = "Head"
+            -- force recreate all
+            for _,p in pairs(B.HitboxParts) do pcall(function() if p then p:Destroy() end end) end
+            B.HitboxParts = {}
+        end
+    end)
+    Toggle(h, 114, "Hitbox on Body", "Attach ball to HRP", true, function(v)
+        if v then
+            B.Settings.Brutal.HitboxPart = "Body"
+            for _,p in pairs(B.HitboxParts) do pcall(function() if p then p:Destroy() end end) end
+            B.HitboxParts = {}
+        end
+    end)
+    Slider(h, 148, "Hitbox Size 2-27", 2, 27, 8, function(v)
+        B.Settings.Brutal.HitboxSize = v
+        -- apply size immediately to existing
+        for _, hb in pairs(B.HitboxParts) do
+            if hb and hb.Parent then
+                pcall(function() hb.Size = Vector3.new(v, v, v) end)
+            end
+        end
+    end)
 
     local w = Card("COMBAT", "Weapon & autokill", 180)
     Toggle(w, 42, "Anti Cooldown", "No fire delay", false, function(v) B.Settings.Brutal.AntiCooldown=v end)
@@ -859,44 +886,103 @@ local function UpdateESP()
 end
 
 -- SAFE HITBOX: fake part welded, never resize real Head/HRP
+local function ClearAllHitboxes()
+    for _,p in pairs(B.HitboxParts) do
+        pcall(function()
+            if p and p.Parent then p:Destroy() end
+        end)
+    end
+    B.HitboxParts = {}
+end
+
+local function MakeHitbox(player, attach, size)
+    if not attach or not attach.Parent then return nil end
+    local char = attach.Parent
+    if not char then return nil end
+    -- remove old for this player
+    if B.HitboxParts[player.UserId] then
+        pcall(function() B.HitboxParts[player.UserId]:Destroy() end)
+        B.HitboxParts[player.UserId] = nil
+    end
+    local hb = Instance.new("Part")
+    hb.Name = "BX_Hitbox"
+    hb.Shape = Enum.PartType.Ball
+    hb.Material = Enum.Material.ForceField
+    hb.Color = Color3.fromRGB(255, 60, 60)
+    hb.Transparency = 0.45
+    hb.Size = Vector3.new(size, size, size)
+    hb.Massless = true
+    hb.CanCollide = false
+    hb.CanQuery = true
+    hb.CanTouch = true
+    hb.Anchored = false
+    hb.CastShadow = false
+    hb.CFrame = attach.CFrame
+    hb.Parent = char
+    -- Weld so it follows without breaking physics of original part
+    local weld = Instance.new("Weld")
+    weld.Name = "BX_Weld"
+    weld.Part0 = attach
+    weld.Part1 = hb
+    weld.C0 = CFrame.new()
+    weld.C1 = CFrame.new()
+    weld.Parent = hb
+    B.HitboxParts[player.UserId] = hb
+    return hb
+end
+
 local function UpdateHitbox()
     if not B.Settings.Brutal.HitboxExpand then
-        for _,p in pairs(B.HitboxParts) do pcall(function() p:Destroy() end) end
-        B.HitboxParts={}
+        if next(B.HitboxParts) then ClearAllHitboxes() end
         return
     end
-    local s=B.Settings.Brutal.HitboxSize
-    local useHead=B.Settings.Brutal.HitboxPart=="Head"
-    local seen={}
-    for _,p in ipairs(Players:GetPlayers()) do
-        if p==LocalPlayer then continue end
-        local char=GetChar(p); if not IsAlive(char) then continue end
-        local attach=useHead and GetHead(char) or GetRoot(char)
+    local size = math.clamp(tonumber(B.Settings.Brutal.HitboxSize) or 8, 2, 27)
+    local useHead = (B.Settings.Brutal.HitboxPart == "Head")
+    local alive = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        local char = GetChar(p)
+        if not IsAlive(char) then continue end
+        local attach = useHead and GetHead(char) or GetRoot(char)
         if not attach then continue end
-        seen[p.UserId]=true
-        local hb=B.HitboxParts[p.UserId]
+        alive[p.UserId] = true
+        local hb = B.HitboxParts[p.UserId]
+        local needNew = false
         if not hb or not hb.Parent then
-            hb=Instance.new("Part")
-            hb.Name="BX_Hitbox"
-            hb.Anchored=false
-            hb.CanCollide=false
-            hb.Massless=true
-            hb.Transparency=0.6
-            hb.Material=Enum.Material.Neon
-            hb.Color=Color3.fromRGB(255,80,80)
-            hb.Size=Vector3.new(s,s,s)
-            hb.Parent=char
-            local w=Instance.new("WeldConstraint")
-            w.Part0=attach; w.Part1=hb; w.Parent=hb
-            hb.CFrame=attach.CFrame
-            B.HitboxParts[p.UserId]=hb
+            needNew = true
         else
-            hb.Size=Vector3.new(s,s,s)
-            if B.CurrentTarget==p then hb.Color=Color3.fromRGB(255,40,40) else hb.Color=Color3.fromRGB(255,100,100) end
+            -- re-attach if parent changed or weld broken
+            local weld = hb:FindFirstChild("BX_Weld")
+            if not weld or weld.Part0 ~= attach then
+                needNew = true
+            end
+        end
+        if needNew then
+            MakeHitbox(p, attach, size)
+            hb = B.HitboxParts[p.UserId]
+        end
+        if hb and hb.Parent then
+            -- force size every frame so slider always works
+            local target = Vector3.new(size, size, size)
+            if (hb.Size - target).Magnitude > 0.05 then
+                hb.Size = target
+            end
+            if B.CurrentTarget == p then
+                hb.Color = Color3.fromRGB(255, 30, 30)
+                hb.Transparency = 0.35
+            else
+                hb.Color = Color3.fromRGB(255, 90, 90)
+                hb.Transparency = 0.5
+            end
+            -- keep welded position
+            -- weld keeps alignment; no forced CFrame needed
         end
     end
-    for uid,hb in pairs(B.HitboxParts) do
-        if not seen[uid] then pcall(function() hb:Destroy() end); B.HitboxParts[uid]=nil end
+    for uid, hb in pairs(B.HitboxParts) do
+        if not alive[uid] then
+            pcall(function() if hb then hb:Destroy() end end)
+            B.HitboxParts[uid] = nil
+        end
     end
 end
 
