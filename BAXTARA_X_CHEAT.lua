@@ -53,11 +53,12 @@ B.Settings = B.Settings or {
         Enabled=false, VisibilityCheck=true, HeadAim=true, BodyAim=false, MultiBone=false,
         FOVCircle=true, AimDistance=800, AimLock=false, AimSmoothing=0.15, AimPrediction=false,
         PredictionAmount=0.12, DrawTargetLine=true, FOV=180, TeamCheck=true,
-        SilentAim=false, AntiMiss=false, HitPart="Head",
+        SilentAim=false, AntiMiss=false, HitPart="Head", AimNPC=false,
     },
     ESP = {
         Enabled=false, Box=true, Name=true, HealthBar=true, Distance=true, Tracer=true,
         Skeleton=false, VisibleCheck=true, PriorityMark=true, Offscreen=true, MaxDistance=1000,
+        NPCESP=false, TracerOrigin="Bottom", -- Bottom / Center / Top / Left / Right
         ColorName="Cyan",
         VisibleColor=Color3.fromRGB(0,230,200), HiddenColor=Color3.fromRGB(255,85,105),
         PriorityColor=Color3.fromRGB(255,200,50), TracerColor=Color3.fromRGB(0,230,200),
@@ -69,10 +70,16 @@ B.Settings = B.Settings or {
         HitboxExpand=false, HitboxSize=8, HitboxPart="Body", HitboxRedAim=true,
         AntiCooldown=false, InfiniteAmmo=false, AutoShoot=false, AttackSpeed=false, AttackSpeedVal=8,
         AutoKill=false, FlyKillAll=false, SpinBot=false, SpinSpeed=40,
+        GodMode=false, GhostMode=false,
     },
     LocalCfg = {
         SkyBAXTARA=false, FreezeOthers=false, AntiLagSelf=true, ServerLag=false,
         SelfTag=false, SelfTagText="BAXTARA", SelfTagColor="Gold", SelfTagRainbow=false,
+        ServerChat=false, UnlockPasses=false, AutoRank=false,
+        TPTarget="Player", -- Player / Object
+    },
+    Troll = {
+        FakeBan=false, FakeBanText="You have been banned. Reason: Exploiting (Code 2A)",
     },
     VIP = {
         Unlocked=false, Injected=false,
@@ -303,7 +310,7 @@ local Content = New("ScrollingFrame", {
 local ContentLayout = New("UIListLayout", {Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}, Content)
 New("UIPadding", {PaddingBottom=UDim.new(0,6), PaddingRight=UDim.new(0,4)}, Content)
 
-local SideNames = {"Home","ESP","Aim","Brutal","LocalCfg","VIP","Settings"}
+local SideNames = {"Home","ESP","Aim","Brutal","LocalCfg","Troll","Settings"}
 local TabButtons, CurrentTab = {}, "Home"
 local PageBuilders = {}
 
@@ -396,35 +403,53 @@ end
 -- PAGE: HOME
 PageBuilders.Home = function()
     ClearContent()
-    local profile = Card("PLAYER PROFILE", "Welcome to cyber workspace", 120)
-    local av = New("Frame", {Position=UDim2.fromOffset(12,48), Size=UDim2.fromOffset(50,50), BackgroundColor3=T.Element, ZIndex=13}, profile)
-    Round(av, 12)
-    New("TextLabel", {Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Text="👤", TextSize=22, ZIndex=14}, av)
-    New("TextLabel", {Position=UDim2.fromOffset(72,50), Size=UDim2.new(1,-80,0,18), BackgroundTransparency=1, Text=LocalPlayer.DisplayName, TextColor3=T.White, Font=Enum.Font.GothamBold, TextSize=13, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, profile)
-    New("TextLabel", {Position=UDim2.fromOffset(72,70), Size=UDim2.new(1,-80,0,14), BackgroundTransparency=1, Text="@"..LocalPlayer.Name.."  ·  SESSION ACTIVE", TextColor3=T.Accent, Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, profile)
-    local line = New("Frame", {Position=UDim2.fromOffset(12,108), Size=UDim2.new(1,-24,0,2), BackgroundColor3=T.Accent, BorderSizePixel=0, ZIndex=13}, profile)
+    local profile = Card("PLAYER PROFILE", "Welcome to cyber workspace", 150)
+    local av = New("ImageLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.fromOffset(64,64), BackgroundColor3=T.Element, BorderSizePixel=0, ZIndex=13}, profile)
+    Round(av, 14)
+    task.spawn(function()
+        local ok, img = pcall(function()
+            return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+        end)
+        if ok and av.Parent then av.Image = img end
+    end)
+    New("TextLabel", {Position=UDim2.fromOffset(88,52), Size=UDim2.new(1,-100,0,20), BackgroundTransparency=1, Text=LocalPlayer.DisplayName, TextColor3=T.White, Font=Enum.Font.GothamBold, TextSize=14, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, profile)
+    New("TextLabel", {Position=UDim2.fromOffset(88,74), Size=UDim2.new(1,-100,0,16), BackgroundTransparency=1, Text="@"..LocalPlayer.Name.."  ·  SESSION ACTIVE", TextColor3=T.Accent, Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, profile)
+    New("TextLabel", {Position=UDim2.fromOffset(88,96), Size=UDim2.new(1,-100,0,14), BackgroundTransparency=1, Text="Key Active · Premium Client", TextColor3=T.Muted, Font=Enum.Font.Code, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, profile)
+    local line = New("Frame", {Position=UDim2.fromOffset(12,128), Size=UDim2.new(1,-24,0,2), BackgroundColor3=T.Accent, BorderSizePixel=0, ZIndex=13}, profile)
 
     local perf = Card("LIVE STATS", "Real-time client", 90)
     local st = New("TextLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.new(1,-24,0,30), BackgroundTransparency=1, Text="FPS: -- | Players: -- | Time: 00:00", TextColor3=T.Accent, Font=Enum.Font.Code, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, perf)
     B.StatsLabel = st
 
+    local status = Card("MODULE STATUS", "Active systems", 110)
+    local ms = New("TextLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.new(1,-24,0,50), BackgroundTransparency=1, Text="Aim OFF | ESP OFF | Brutal idle\nVIP tab removed · Troll ready", TextColor3=T.Muted, Font=Enum.Font.Code, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, TextYAlignment=Enum.TextYAlignment.Top, ZIndex=13}, status)
+    B.HomeModuleStatus = ms
+
     local quick = Card("QUICK ACCESS", "Shortcuts", 80)
-    Action(quick, 42, "System notification", function() Notify("BAXTARA", "Dashboard OK") end)
+    Action(quick, 42, "System notification", function() Notify("BAXTARA", "Dashboard OK · Avatar loaded") end)
 end
 
--- PAGE: ESP
 PageBuilders.ESP = function()
     ClearContent()
     local S = B.Settings.ESP
-    local c = Card("ESP SETTINGS", "Player visuals", 340)
+    local c = Card("ESP SETTINGS", "Player visuals", 360)
     Toggle(c, 42, "Enable ESP", "Master toggle", S.Enabled, function(v) B.Settings.ESP.Enabled=v end)
     Toggle(c, 78, "Box ESP", "Full body box", S.Box, function(v) B.Settings.ESP.Box=v end)
     Toggle(c, 114, "Name", "Player names", S.Name, function(v) B.Settings.ESP.Name=v end)
     Toggle(c, 150, "Health Bar", "HP bar", S.HealthBar, function(v) B.Settings.ESP.HealthBar=v end)
     Toggle(c, 186, "Distance", "Range text", S.Distance, function(v) B.Settings.ESP.Distance=v end)
-    Toggle(c, 222, "Tracer Line", "Bottom line", S.Tracer, function(v) B.Settings.ESP.Tracer=v end)
+    Toggle(c, 222, "Tracer Line", "Line to target", S.Tracer, function(v) B.Settings.ESP.Tracer=v end)
     Toggle(c, 258, "Skeleton ESP", "Bone lines", S.Skeleton, function(v) B.Settings.ESP.Skeleton=v end)
     Toggle(c, 294, "Visible Check", "Green/red", S.VisibleCheck, function(v) B.Settings.ESP.VisibleCheck=v end)
+    Toggle(c, 330, "NPC / Bot ESP", "Non-player characters", S.NPCESP, function(v) B.Settings.ESP.NPCESP=v end)
+    local tr = Card("TRACER ORIGIN", "Where line starts", 160)
+    Action(tr, 42, "Origin: Bottom", function() B.Settings.ESP.TracerOrigin="Bottom"; Notify("ESP","Tracer Bottom") end)
+    Action(tr, 74, "Origin: Center (crosshair)", function() B.Settings.ESP.TracerOrigin="Center"; Notify("ESP","Tracer Center") end)
+    Action(tr, 106, "Origin: Top", function() B.Settings.ESP.TracerOrigin="Top"; Notify("ESP","Tracer Top") end)
+    Action(tr, 138, "Origin: Left / Right edge", function()
+        B.Settings.ESP.TracerOrigin = (B.Settings.ESP.TracerOrigin=="Left") and "Right" or "Left"
+        Notify("ESP","Tracer "..B.Settings.ESP.TracerOrigin)
+    end)
     local c2 = Card("COLOR", "ESP + FOV color", 140)
     Action(c2, 42, "Cyan", function() ApplyColor("Cyan") end)
     Action(c2, 74, "Purple", function() ApplyColor("Purple") end)
@@ -436,7 +461,7 @@ end
 PageBuilders.Aim = function()
     ClearContent()
     local S = B.Settings.Aim
-    local c = Card("AIM SETTINGS", "Aimbot system", 400)
+    local c = Card("AIM SETTINGS", "Aimbot system", 430)
     Toggle(c, 42, "Enable Aimbot", "Master", S.Enabled, function(v)
         B.Settings.Aim.Enabled=v
         if v and DrawingLib and not B.Drawings.FOV then
@@ -452,6 +477,7 @@ PageBuilders.Aim = function()
     Toggle(c, 258, "Body Aim", "Aim body", S.BodyAim, function(v) B.Settings.Aim.BodyAim=v; B.Settings.Aim.HitPart="Body"; if v then B.Settings.Aim.HeadAim=false end end)
     Toggle(c, 294, "FOV Circle", "Show FOV", S.FOVCircle, function(v) B.Settings.Aim.FOVCircle=v end)
     Toggle(c, 330, "Team Check", "Skip teammates", S.TeamCheck, function(v) B.Settings.Aim.TeamCheck=v end)
+    Toggle(c, 366, "Aim NPC / Bot", "Target non-players", S.AimNPC, function(v) B.Settings.Aim.AimNPC=v end)
     local c2 = Card("FOV / SMOOTH", "Values", 120)
     Slider(c2, 42, "FOV Size", 40, 1000, S.FOV, function(v) B.Settings.Aim.FOV=v end)
     Slider(c2, 88, "Smooth x100", 5, 40, math.floor(S.AimSmoothing*100), function(v) B.Settings.Aim.AimSmoothing=v/100 end)
@@ -460,7 +486,7 @@ end
 PageBuilders.Brutal = function()
     ClearContent()
     local S = B.Settings.Brutal
-    local c = Card("MOVEMENT", "Fly speed noclip", 300)
+    local c = Card("MOVEMENT", "Fly speed noclip god ghost", 380)
     Toggle(c, 42, "Fly", "Free fly", S.Fly, function(v)
         B.Settings.Brutal.Fly=v
         local char=LocalPlayer.Character; local root=char and GetRoot(char); local hum=char and char:FindFirstChildOfClass("Humanoid")
@@ -476,9 +502,9 @@ PageBuilders.Brutal = function()
     Toggle(c, 122, "Speed Hack", "Walk speed", S.SpeedHack, function(v)
         B.Settings.Brutal.SpeedHack=v
         local hum=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then if v then B.OriginalWalkSpeed=hum.WalkSpeed; hum.WalkSpeed=math.clamp(B.Settings.Brutal.SpeedValue,16,40) else hum.WalkSpeed=B.OriginalWalkSpeed or 16 end end
+        if hum then if v then B.OriginalWalkSpeed=hum.WalkSpeed; hum.WalkSpeed=math.clamp(B.Settings.Brutal.SpeedValue,16,100) else hum.WalkSpeed=B.OriginalWalkSpeed or 16 end end
     end)
-    Slider(c, 158, "Walk Speed", 16, 40, S.SpeedValue, function(v) B.Settings.Brutal.SpeedValue=v if B.Settings.Brutal.SpeedHack then local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed=v end end end)
+    Slider(c, 158, "Walk Speed", 16, 100, S.SpeedValue, function(v) B.Settings.Brutal.SpeedValue=v if B.Settings.Brutal.SpeedHack then local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed=v end end end)
     Toggle(c, 200, "Infinite Jump", "Spam jump", S.InfiniteJump, function(v)
         B.Settings.Brutal.InfiniteJump=v
         if B.JumpConn then B.JumpConn:Disconnect() B.JumpConn=nil end
@@ -488,6 +514,34 @@ PageBuilders.Brutal = function()
         B.Settings.Brutal.Noclip=v
         if B.NoclipConn then B.NoclipConn:Disconnect() B.NoclipConn=nil end
         if v then B.NoclipConn=RunService.Stepped:Connect(function() local ch=LocalPlayer.Character if not ch then return end for _,p in ipairs(ch:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end end); AddConn(B.NoclipConn) end
+    end)
+    Toggle(c, 272, "God Mode", "Local invincible (best effort)", S.GodMode, function(v)
+        B.Settings.Brutal.GodMode = v
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if v then
+                B._GodConn = hum.HealthChanged:Connect(function()
+                    if B.Settings.Brutal.GodMode and hum.Health < hum.MaxHealth then
+                        hum.Health = hum.MaxHealth
+                    end
+                end)
+                hum.Health = hum.MaxHealth
+                AddConn(B._GodConn)
+            end
+        end
+    end)
+    Toggle(c, 308, "Ghost Mode", "Local invisible", S.GhostMode, function(v)
+        B.Settings.Brutal.GhostMode = v
+        local char = LocalPlayer.Character
+        if not char then return end
+        for _, p in ipairs(char:GetDescendants()) do
+            if p:IsA("BasePart") then
+                p.LocalTransparencyModifier = v and 1 or 0
+            elseif p:IsA("Decal") then
+                p.Transparency = v and 1 or 0
+            end
+        end
     end)
 
     local h = Card("HITBOX", "Enlarge Head or Body", 200)
@@ -536,160 +590,215 @@ end
 PageBuilders.LocalCfg = function()
     ClearContent()
     local S = B.Settings.LocalCfg
-    local sky = Card("SKY BRANDING", "BAXTARA text in sky", 100)
-    Toggle(sky, 42, "Sky BAXTARA Text", "Ring of text around you", S.SkyBAXTARA, function(v)
+    local sky = Card("SKY HACKER", "Bright matrix sky + logo on clouds", 110)
+    Toggle(sky, 42, "Hacker Sky ON", "Bright green matrix style", S.SkyBAXTARA, function(v)
         B.Settings.LocalCfg.SkyBAXTARA = v
         if B.SkyFolder then pcall(function() B.SkyFolder:Destroy() end) B.SkyFolder=nil end
         if v then
             B.SkyFolder = Instance.new("Folder")
             B.SkyFolder.Name = "BAXTARA_SKY"
             B.SkyFolder.Parent = Workspace
+            -- bright hacker lighting
+            Lighting.Brightness = 3
+            Lighting.Ambient = Color3.fromRGB(40, 80, 50)
+            Lighting.OutdoorAmbient = Color3.fromRGB(60, 120, 70)
+            Lighting.FogColor = Color3.fromRGB(20, 60, 40)
+            Lighting.FogEnd = 2000
+            Lighting.ClockTime = 14
+            -- soft logos high in sky (not blocking view)
             local root = GetRoot(LocalPlayer.Character)
-            local base = root and root.Position or Vector3.new(0, 30, 0)
-            for i = 1, 12 do
-                local ang = (i/12) * math.pi * 2
+            local base = root and root.Position or Vector3.new(0, 0, 0)
+            for i = 1, 6 do
+                local ang = (i/6) * math.pi * 2
                 local part = Instance.new("Part")
-                part.Name = "BXSky"
                 part.Anchored = true
                 part.CanCollide = false
                 part.Transparency = 1
-                part.Size = Vector3.new(2,2,2)
-                part.CFrame = CFrame.new(base.X + math.cos(ang)*120, base.Y + 60, base.Z + math.sin(ang)*120)
+                part.Size = Vector3.new(1,1,1)
+                part.CFrame = CFrame.new(base.X + math.cos(ang)*180, 120, base.Z + math.sin(ang)*180)
                 part.Parent = B.SkyFolder
                 local bb = Instance.new("BillboardGui")
-                bb.Size = UDim2.fromOffset(400, 60)
-                bb.MaxDistance = 2000
+                bb.Size = UDim2.fromOffset(320, 40)
+                bb.MaxDistance = 3000
+                bb.AlwaysOnTop = false
                 bb.Parent = part
                 local tl = Instance.new("TextLabel")
                 tl.Size = UDim2.fromScale(1,1)
                 tl.BackgroundTransparency = 1
                 tl.Text = "BAXTARA X CHEAT"
-                tl.TextColor3 = Color3.fromRGB(0, 230, 200)
-                tl.TextStrokeTransparency = 0.4
+                tl.TextColor3 = Color3.fromRGB(0, 255, 120)
+                tl.TextTransparency = 0.35
+                tl.TextStrokeTransparency = 0.6
                 tl.Font = Enum.Font.GothamBlack
                 tl.TextScaled = true
                 tl.Parent = bb
             end
-            Lighting.Brightness = math.max(Lighting.Brightness, 2.5)
-            Lighting.Ambient = Color3.fromRGB(140, 160, 180)
-            Lighting.FogEnd = 1e6
-            Lighting.ClockTime = 14
+        else
+            Lighting.Brightness = 1
+            Lighting.FogEnd = 100000
         end
     end)
-    Action(sky, 78, "Refresh sky positions", function()
+    Action(sky, 78, "Refresh sky logos", function()
         if B.Settings.LocalCfg.SkyBAXTARA then
-            if B.SkyFolder then pcall(function() B.SkyFolder:Destroy() end) B.SkyFolder=nil end
+            local t = true
             B.Settings.LocalCfg.SkyBAXTARA = false
+            if B.SkyFolder then pcall(function() B.SkyFolder:Destroy() end) end
             task.wait(0.05)
+            -- re-fire by toggling logic: user can toggle again; quick rebuild:
             B.Settings.LocalCfg.SkyBAXTARA = true
-            -- rebuild
-            B.SkyFolder = Instance.new("Folder"); B.SkyFolder.Name="BAXTARA_SKY"; B.SkyFolder.Parent=Workspace
-            local root = GetRoot(LocalPlayer.Character)
-            local base = root and root.Position or Vector3.new(0,30,0)
-            for i=1,12 do
-                local ang=(i/12)*math.pi*2
-                local part=Instance.new("Part"); part.Anchored=true; part.CanCollide=false; part.Transparency=1; part.Size=Vector3.new(2,2,2)
-                part.CFrame=CFrame.new(base.X+math.cos(ang)*120, base.Y+60, base.Z+math.sin(ang)*120); part.Parent=B.SkyFolder
-                local bb=Instance.new("BillboardGui"); bb.Size=UDim2.fromOffset(400,60); bb.MaxDistance=2000; bb.Parent=part
-                local tl=Instance.new("TextLabel"); tl.Size=UDim2.fromScale(1,1); tl.BackgroundTransparency=1; tl.Text="BAXTARA X CHEAT"
-                tl.TextColor3=Color3.fromRGB(0,230,200); tl.Font=Enum.Font.GothamBlack; tl.TextScaled=true; tl.Parent=bb
-            end
             Notify("SKY", "Refreshed")
         end
     end)
 
-    local fr = Card("FREEZE PLAYERS", "Others frozen, you free", 120)
-    Toggle(fr, 42, "Freeze All Others", "Anchor their HRP (client)", S.FreezeOthers, function(v)
-        B.Settings.LocalCfg.FreezeOthers = v
-        if not v then
-            for uid, root in pairs(B.FrozenParts) do
-                pcall(function() if root and root.Parent then root.Anchored = false end end)
-            end
-            B.FrozenParts = {}
-            Notify("FREEZE", "Players unfrozen")
-        else
-            Notify("FREEZE", "Freezing others...")
-        end
+    local tag = Card("SELF NAME TAG", "Tag di Avatar kamu", 150)
+    Toggle(tag, 42, "Enable Self Tag", "Billboard di atas kepala", S.SelfTag, function(v)
+        B.Settings.LocalCfg.SelfTag = v
+        if not v and B.SelfTagGui then pcall(function() B.SelfTagGui:Destroy() end) B.SelfTagGui=nil end
     end)
-    Action(fr, 78, "Force Unfreeze All", function()
-        B.Settings.LocalCfg.FreezeOthers = false
-        for uid, root in pairs(B.FrozenParts) do
-            pcall(function() if root and root.Parent then root.Anchored = false end end)
-        end
-        B.FrozenParts = {}
-        Notify("FREEZE", "All unfrozen")
+    Action(tag, 78, "Text: BAXTARA", function() B.Settings.LocalCfg.SelfTagText="BAXTARA"; Notify("TAG","BAXTARA") end)
+    Action(tag, 110, "Rainbow / Gold toggle", function()
+        B.Settings.LocalCfg.SelfTagRainbow = not B.Settings.LocalCfg.SelfTagRainbow
+        Notify("TAG", B.Settings.LocalCfg.SelfTagRainbow and "Rainbow" or "Gold")
     end)
 
-    local tp = Card("TELEPORT / LAG", "Player tools", 120)
-    Action(tp, 42, "TP ALL PLAYERS IN FRONT", function()
-        local my = GetRoot(LocalPlayer.Character)
-        if not my then return end
-        local front = my.CFrame * CFrame.new(0,0,-10)
-        local i = 0
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then
-                local root = GetRoot(GetChar(p))
-                if root then
-                    i = i + 1
-                    pcall(function() root.CFrame = front * CFrame.new((i%5)*3-6, 0, math.floor(i/5)*3) end)
+    local chat = Card("SERVER CHAT (bubble)", "Custom bubble di atas kepala", 120)
+    Toggle(chat, 42, "Show Chat Bubble", "Teks bubble lokal", S.ServerChat, function(v)
+        B.Settings.LocalCfg.ServerChat = v
+        if not v and B.ChatBubble then pcall(function() B.ChatBubble:Destroy() end) B.ChatBubble=nil end
+    end)
+    Action(chat, 78, "Set bubble: Hello BAXTARA", function()
+        B.Settings.LocalCfg.ChatBubbleText = "Hello BAXTARA"
+        B.Settings.LocalCfg.ServerChat = true
+        Notify("CHAT", "Bubble set")
+    end)
+
+    local un = Card("UNLOCK / RANK", "Best-effort client", 140)
+    Toggle(un, 42, "Unlock Passes attempt", "Scan attributes/values", S.UnlockPasses, function(v)
+        B.Settings.LocalCfg.UnlockPasses = v
+        if v then
+            for _, obj in ipairs(LocalPlayer:GetDescendants()) do
+                if obj:IsA("BoolValue") then
+                    local n = obj.Name:lower()
+                    if n:find("vip") or n:find("pass") or n:find("premium") or n:find("gamepass") or n:find("owned") then
+                        pcall(function() obj.Value = true end)
+                    end
+                end
+            end
+            pcall(function()
+                LocalPlayer:SetAttribute("VIP", true)
+                LocalPlayer:SetAttribute("Premium", true)
+                LocalPlayer:SetAttribute("HasPass", true)
+            end)
+            Notify("UNLOCK", "Pass attributes forced (client)")
+        end
+    end)
+    Toggle(un, 78, "Auto Rank / Level attempt", "Bump level values", S.AutoRank, function(v)
+        B.Settings.LocalCfg.AutoRank = v
+    end)
+    Action(un, 114, "Force +50 Level once", function()
+        for _, obj in ipairs(LocalPlayer:GetDescendants()) do
+            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                local n = obj.Name:lower()
+                if n:find("level") or n:find("rank") or n:find("xp") then
+                    pcall(function() obj.Value = obj.Value + 50 end)
                 end
             end
         end
-        Notify("TP", "TP All attempted (client)")
-    end)
-    Toggle(tp, 78, "Anti Lag Self", "Low quality for you", S.AntiLagSelf, function(v)
-        B.Settings.LocalCfg.AntiLagSelf = v
-        pcall(function()
-            settings().Rendering.QualityLevel = v and Enum.QualityLevel.Level01 or Enum.QualityLevel.Automatic
-        end)
+        Notify("RANK", "Level/XP +50 attempt")
     end)
 
-    local tag = Card("SELF NAME TAG", "Tag di Avatar kamu saja", 180)
-    Toggle(tag, 42, "Enable Self Tag", "Billboard di atas kepala", S.SelfTag, function(v)
-        B.Settings.LocalCfg.SelfTag = v
-        if not v and B.SelfTagGui then pcall(function() B.SelfTagGui:Destroy() end) B.SelfTagGui = nil end
+    local tp = Card("TELEPORT", "Player or Object", 150)
+    Action(tp, 42, "Mode: Player", function() B.Settings.LocalCfg.TPTarget="Player"; Notify("TP","Player mode") end)
+    Action(tp, 74, "Mode: Object", function() B.Settings.LocalCfg.TPTarget="Object"; Notify("TP","Object mode") end)
+    Action(tp, 106, "TP to nearest target", function()
+        local my = GetRoot(LocalPlayer.Character)
+        if not my then return end
+        if B.Settings.LocalCfg.TPTarget == "Object" then
+            local best, bd = nil, 9999
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if obj:IsA("BasePart") and not obj:IsDescendantOf(LocalPlayer.Character) then
+                    local d = (my.Position - obj.Position).Magnitude
+                    if d > 5 and d < bd and d < 300 then bd=d; best=obj end
+                end
+            end
+            if best then my.CFrame = best.CFrame + Vector3.new(0, 3, 0); Notify("TP","Object") end
+        else
+            local best, bd = nil, 9999
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer then
+                    local r = GetRoot(GetChar(p))
+                    if r then
+                        local d = (my.Position - r.Position).Magnitude
+                        if d < bd then bd=d; best=r end
+                    end
+                end
+            end
+            if best then my.CFrame = best.CFrame * CFrame.new(0,0,3); Notify("TP","Player") end
+        end
     end)
-    Action(tag, 78, "Text: BAXTARA", function() B.Settings.LocalCfg.SelfTagText = "BAXTARA"; Notify("TAG", "Text = BAXTARA") end)
-    Action(tag, 110, "Text: VIP KING", function() B.Settings.LocalCfg.SelfTagText = "VIP KING"; Notify("TAG", "Text = VIP KING") end)
-    Action(tag, 142, "Color Gold / Rainbow toggle", function()
-        B.Settings.LocalCfg.SelfTagRainbow = not B.Settings.LocalCfg.SelfTagRainbow
-        if not B.Settings.LocalCfg.SelfTagRainbow then B.Settings.LocalCfg.SelfTagColor = "Gold" end
-        Notify("TAG", B.Settings.LocalCfg.SelfTagRainbow and "Rainbow ON" or "Gold")
+    Action(tp, 138, "TP ALL players in front", function()
+        local my = GetRoot(LocalPlayer.Character)
+        if not my then return end
+        local front = my.CFrame * CFrame.new(0,0,-10)
+        local i=0
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                local r = GetRoot(GetChar(p))
+                if r then i=i+1; pcall(function() r.CFrame = front * CFrame.new((i%4)*3-4,0,math.floor(i/4)*3) end) end
+            end
+        end
+        Notify("TP","All front")
+    end)
+
+    local fr = Card("FREEZE / LAG", "Others", 100)
+    Toggle(fr, 42, "Freeze All Others", "Anchor HRP", S.FreezeOthers, function(v)
+        B.Settings.LocalCfg.FreezeOthers = v
+        if not v then
+            for _, root in pairs(B.FrozenParts) do pcall(function() if root and root.Parent then root.Anchored=false end end) end
+            B.FrozenParts = {}
+        end
+    end)
+    Toggle(fr, 78, "Anti Lag Self", "Low quality", S.AntiLagSelf, function(v)
+        B.Settings.LocalCfg.AntiLagSelf = v
+        pcall(function() settings().Rendering.QualityLevel = v and Enum.QualityLevel.Level01 or Enum.QualityLevel.Automatic end)
     end)
 end
 
-PageBuilders.VIP = function()
+PageBuilders.Troll = function()
     ClearContent()
-    local V = B.Settings.VIP
-    if not V.Unlocked then
-        local lock = Card("VIP LOCKED", "Masukkan key VIP untuk unlock", 200)
-        New("TextLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.new(1,-24,0,40), BackgroundTransparency=1, Text="Fitur dewa terkunci.\nKey VIP diperlukan.", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, lock)
-        local box = New("TextBox", {Position=UDim2.fromOffset(12,100), Size=UDim2.new(1,-24,0,32), BackgroundColor3=T.Element, Text="", PlaceholderText="ENTER VIP KEY", PlaceholderColor3=T.Muted, TextColor3=T.White, Font=Enum.Font.Code, TextSize=12, ZIndex=13}, lock)
-        Round(box, 8)
-        Action(lock, 140, "VERIFY VIP KEY", function()
-            local k = (box.Text or ""):gsub("^%s+",""):gsub("%s+$","")
-            if k:upper() == "NUGI" then
-                B.Settings.VIP.Unlocked = true
-                getgenv().BAXTARA_VIP = true
-                Notify("VIP", "Access granted — Inject available")
-                SelectTab("VIP")
-            else
-                Notify("VIP", "Invalid VIP key")
-            end
-        end)
-        return
-    end
-
-    local inj = Card("VIP INJECT", "Panel premium terpisah", 120)
-    New("TextLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.new(1,-24,0,20), BackgroundTransparency=1, Text=V.Injected and "Status: INJECTED" or "Status: Ready to inject", TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, inj)
-    Action(inj, 78, V.Injected and "REOPEN VIP PANEL" or "INJECT VIP PANEL", function()
-        B.Settings.VIP.Injected = true
-        if B.OpenVIPPanel then B.OpenVIPPanel() end
-        Notify("VIP", "Panel injected")
+    local S = B.Settings.Troll
+    local fb = Card("FAKE BAN MESSAGE", "Popup di layar kamu / local", 200)
+    New("TextLabel", {Position=UDim2.fromOffset(12,42), Size=UDim2.new(1,-24,0,36), BackgroundTransparency=1, Text="Default: Suspicious activity (Code 2A)", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, TextWrapped=true, ZIndex=13}, fb)
+    Action(fb, 84, "Use DEFAULT ban text", function()
+        B.Settings.Troll.FakeBanText = "You have been banned.\\nReason: Suspicious activity detected Or Extreme Ping (Code 2A)"
+        Notify("TROLL", "Default text set")
+    end)
+    Action(fb, 116, "Custom: Exploiting", function()
+        B.Settings.Troll.FakeBanText = "Account banned.\\nReason: Exploiting / Third-party software."
+        Notify("TROLL", "Custom set")
+    end)
+    Action(fb, 148, "SHOW FAKE BAN NOW", function()
+        if B.FakeBanGui then pcall(function() B.FakeBanGui:Destroy() end) end
+        local g = New("Frame", {Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.fromRGB(0,0,0), BackgroundTransparency=0.3, ZIndex=200, BorderSizePixel=0}, ScreenGui)
+        local card = New("Frame", {Size=UDim2.fromOffset(340,200), Position=UDim2.new(0.5,-170,0.5,-100), BackgroundColor3=Color3.fromRGB(30,30,35), BorderSizePixel=0, ZIndex=201}, g)
+        Round(card, 12)
+        New("TextLabel", {Size=UDim2.new(1,-20,0,28), Position=UDim2.fromOffset(10,16), BackgroundTransparency=1, Text="Koneksi Terputus", TextColor3=Color3.fromRGB(255,255,255), Font=Enum.Font.GothamBold, TextSize=18, ZIndex=202}, card)
+        New("TextLabel", {Size=UDim2.new(1,-24,0,80), Position=UDim2.fromOffset(12,50), BackgroundTransparency=1, Text=B.Settings.Troll.FakeBanText or "Banned", TextColor3=Color3.fromRGB(200,200,200), Font=Enum.Font.Gotham, TextSize=12, TextWrapped=true, TextYAlignment=Enum.TextYAlignment.Top, ZIndex=202}, card)
+        local okb = New("TextButton", {Size=UDim2.fromOffset(100,32), Position=UDim2.new(0.5,-50,1,-48), BackgroundColor3=Color3.fromRGB(0,120,200), Text="OK", TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold, TextSize=13, ZIndex=202, AutoButtonColor=false}, card)
+        Round(okb, 8)
+        okb.MouseButton1Click:Connect(function() g:Destroy(); B.FakeBanGui=nil end)
+        B.FakeBanGui = g
     end)
 
-    local note = Card("INFO", "Key VIP: NUGI", 70)
-    New("TextLabel", {Position=UDim2.fromOffset(12,42), Size=UDim2.new(1,-24,0,20), BackgroundTransparency=1, Text="Setelah inject, panel VIP muncul terpisah.", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, note)
+    local o = Card("OTHER TROLL", "Client FX", 100)
+    Action(o, 42, "Flash screen white", function()
+        local f = New("Frame", {Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.new(1,1,1), BackgroundTransparency=0, ZIndex=180, BorderSizePixel=0}, ScreenGui)
+        TweenService:Create(f, TweenInfo.new(0.6), {BackgroundTransparency=1}):Play()
+        task.delay(0.7, function() f:Destroy() end)
+    end)
+    Action(o, 74, "Notify fake kick", function()
+        Notify("SYSTEM", "Connection lost — Code 2A")
+    end)
 end
 
 PageBuilders.Settings = function()
@@ -794,6 +903,27 @@ local function GetBestTarget()
             end
         end
     end
+    if B.Settings.Aim.AimNPC then
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
+                local hum = obj:FindFirstChildOfClass("Humanoid")
+                local head = obj:FindFirstChild("Head") or obj:FindFirstChild("HumanoidRootPart")
+                if hum and head and hum.Health > 0 then
+                    local dist = DistTo(head.Position)
+                    if dist <= B.Settings.Aim.AimDistance then
+                        local screen, on = WorldToScreen(head.Position)
+                        if on then
+                            local cross = (screen - center).Magnitude
+                            if cross <= fov and cross < bestScore then
+                                bestScore = cross
+                                best = {NPC=true, Part=head, Model=obj}
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
     return best
 end
 
@@ -818,6 +948,14 @@ end
 
 local function AimAt(target)
     if not target then return end
+    if type(target) == "table" and target.NPC then
+        local part = target.Part
+        if not part then return end
+        local pos = part.Position
+        local smooth = B.Settings.Aim.AimSmoothing
+        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pos), smooth)
+        return
+    end
     local char=GetChar(target); if not IsAlive(char) then return end
     local part=GetAimPart(char); if not part then return end
     if B.Settings.Aim.VisibilityCheck and not IsVisible(Camera.CFrame.Position, part.Position, char) then return end
@@ -919,7 +1057,16 @@ local function UpdateESP()
             pack.Dist.Text=string.format("[%dm]",math.floor(dist)); pack.Dist.Position=Vector2.new(botS.X,botS.Y+3); pack.Dist.Color=Color3.fromRGB(180,200,210); pack.Dist.Visible=on
         else pack.Dist.Visible=false end
         if B.Settings.ESP.Tracer and pack.Tracer then
-            pack.Tracer.From=bottom; pack.Tracer.To=rootS; pack.Tracer.Color=B.Settings.ESP.TracerColor; pack.Tracer.Visible=on
+            local origin = bottom
+            local vp = Camera.ViewportSize
+            local org = B.Settings.ESP.TracerOrigin or "Bottom"
+            if org == "Center" then origin = Vector2.new(vp.X/2, vp.Y/2)
+            elseif org == "Top" then origin = Vector2.new(vp.X/2, 10)
+            elseif org == "Left" then origin = Vector2.new(10, vp.Y/2)
+            elseif org == "Right" then origin = Vector2.new(vp.X-10, vp.Y/2)
+            else origin = Vector2.new(vp.X/2, vp.Y)
+            end
+            pack.Tracer.From=origin; pack.Tracer.To=rootS; pack.Tracer.Color=B.Settings.ESP.TracerColor; pack.Tracer.Visible=on
         else pack.Tracer.Visible=false end
         if B.Settings.ESP.Skeleton and pack.Skel then
             local idx=1
@@ -933,6 +1080,42 @@ local function UpdateESP()
             end
             for i=idx,#pack.Skel do pack.Skel[i].Visible=false end
         elseif pack.Skel then for _,l in ipairs(pack.Skel) do l.Visible=false end end
+    end
+    -- NPC ESP
+    if B.Settings.ESP.NPCESP then
+        B.NPCDraw = B.NPCDraw or {}
+        local used = {}
+        local my = GetRoot(LocalPlayer.Character)
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
+                local hum = obj:FindFirstChildOfClass("Humanoid")
+                local root = obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart
+                if hum and root and hum.Health > 0 then
+                    local dist = my and (my.Position-root.Position).Magnitude or 999
+                    if dist <= B.Settings.ESP.MaxDistance then
+                        local id = obj:GetFullName()
+                        used[id] = true
+                        if not B.NPCDraw[id] then
+                            local t = Drawing.new("Text")
+                            t.Size = 12; t.Center = true; t.Outline = true
+                            B.NPCDraw[id] = t
+                        end
+                        local sp, on = WorldToScreen(root.Position + Vector3.new(0, 2, 0))
+                        local d = B.NPCDraw[id]
+                        d.Text = string.format("[NPC] %s [%dm]", obj.Name, math.floor(dist))
+                        d.Position = sp
+                        d.Color = Color3.fromRGB(255, 180, 50)
+                        d.Visible = on
+                    end
+                end
+            end
+        end
+        for id, d in pairs(B.NPCDraw) do
+            if not used[id] then pcall(function() d:Remove() end); B.NPCDraw[id]=nil end
+        end
+    elseif B.NPCDraw then
+        for id, d in pairs(B.NPCDraw) do pcall(function() d:Remove() end) end
+        B.NPCDraw = {}
     end
 end
 
@@ -1156,6 +1339,66 @@ AddConn(RunService.Heartbeat:Connect(function()
     if B.Settings.Brutal.FlyKillAll then B.DoFlyKillAll() end
     if B.Settings.Brutal.SpinBot then B.DoSpinBot() end
     if B.EnsureSelfTag then B.EnsureSelfTag() end
+    -- Speed fix: reapply every heartbeat so server reset does not stick
+    if B.Settings.Brutal.SpeedHack then
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            local sp = math.clamp(B.Settings.Brutal.SpeedValue or 24, 16, 100)
+            if hum.WalkSpeed < sp - 1 then hum.WalkSpeed = sp end
+        end
+    end
+    if B.Settings.Brutal.GodMode then
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health < hum.MaxHealth then hum.Health = hum.MaxHealth end
+    end
+    if B.Settings.LocalCfg.ServerChat then
+        local head = GetHead(LocalPlayer.Character)
+        if head then
+            if not B.ChatBubble or not B.ChatBubble.Parent then
+                local bb = Instance.new("BillboardGui")
+                bb.Size = UDim2.fromOffset(180, 50)
+                bb.StudsOffset = Vector3.new(0, 3, 0)
+                bb.AlwaysOnTop = true
+                bb.Parent = head
+                local f = Instance.new("Frame")
+                f.Size = UDim2.fromScale(1,1)
+                f.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                f.Parent = bb
+                Instance.new("UICorner", f).CornerRadius = UDim.new(0, 10)
+                local tl = Instance.new("TextLabel")
+                tl.Name = "Msg"
+                tl.Size = UDim2.new(1,-8,1,-4)
+                tl.Position = UDim2.fromOffset(4,2)
+                tl.BackgroundTransparency = 1
+                tl.Text = B.Settings.LocalCfg.ChatBubbleText or "Hello BAXTARA"
+                tl.TextColor3 = Color3.fromRGB(30,30,30)
+                tl.Font = Enum.Font.Gotham
+                tl.TextScaled = true
+                tl.Parent = f
+                B.ChatBubble = bb
+            else
+                local msg = B.ChatBubble:FindFirstChild("Msg", true)
+                if msg then msg.Text = B.Settings.LocalCfg.ChatBubbleText or "Hello BAXTARA" end
+            end
+        end
+    end
+    if B.Settings.LocalCfg.AutoRank and tick() % 5 < 0.05 then
+        for _, obj in ipairs(LocalPlayer:GetDescendants()) do
+            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                local n = obj.Name:lower()
+                if n:find("level") or n:find("xp") then pcall(function() obj.Value = obj.Value + 1 end) end
+            end
+        end
+    end
+    if B.HomeModuleStatus then
+        B.HomeModuleStatus.Text = string.format("Aim %s | ESP %s | Speed %s\nGod %s | Ghost %s | Spin %s",
+            B.Settings.Aim.Enabled and "ON" or "OFF",
+            B.Settings.ESP.Enabled and "ON" or "OFF",
+            B.Settings.Brutal.SpeedHack and "ON" or "OFF",
+            B.Settings.Brutal.GodMode and "ON" or "OFF",
+            B.Settings.Brutal.GhostMode and "ON" or "OFF",
+            B.Settings.Brutal.SpinBot and "ON" or "OFF")
+    end
     -- VIP Kill Aura
     if B.Settings.VIP.Unlocked and B.Settings.VIP.KillAura then
         local my = GetRoot(LocalPlayer.Character)
