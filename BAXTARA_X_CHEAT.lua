@@ -163,31 +163,262 @@ end
 -- Themes
 local Themes = {
     Modern = {
-        Background=Color3.fromRGB(9,12,19), Sidebar=Color3.fromRGB(14,19,29), Card=Color3.fromRGB(19,26,39),
-        Element=Color3.fromRGB(27,37,53), Accent=Color3.fromRGB(0,230,200), Accent2=Color3.fromRGB(40,145,255),
-        White=Color3.fromRGB(240,245,250), Muted=Color3.fromRGB(130,145,165), Off=Color3.fromRGB(55,65,80),
-        Red=Color3.fromRGB(255,85,105),
+        Name="Modern",
+        Background=Color3.fromRGB(8, 12, 20),
+        Sidebar=Color3.fromRGB(12, 18, 28),
+        Card=Color3.fromRGB(16, 24, 36),
+        Element=Color3.fromRGB(24, 34, 50),
+        Accent=Color3.fromRGB(0, 220, 200),
+        Accent2=Color3.fromRGB(60, 140, 255),
+        White=Color3.fromRGB(240, 248, 255),
+        Muted=Color3.fromRGB(120, 140, 165),
+        Off=Color3.fromRGB(40, 50, 65),
+        Red=Color3.fromRGB(255, 90, 110),
+        Border=Color3.fromRGB(0, 200, 180),
+        Corner=12,
+        StrokeThick=1.2,
     },
-    Hacker = {
-        Background=Color3.fromRGB(5,10,5), Sidebar=Color3.fromRGB(8,18,8), Card=Color3.fromRGB(12,24,12),
-        Element=Color3.fromRGB(20,40,20), Accent=Color3.fromRGB(0,255,70), Accent2=Color3.fromRGB(0,180,50),
-        White=Color3.fromRGB(200,255,200), Muted=Color3.fromRGB(80,140,80), Off=Color3.fromRGB(30,50,30),
-        Red=Color3.fromRGB(255,60,60),
+    Galaxy = {
+        Name="Galaxy",
+        Background=Color3.fromRGB(6, 4, 18),
+        Sidebar=Color3.fromRGB(12, 8, 28),
+        Card=Color3.fromRGB(18, 12, 36),
+        Element=Color3.fromRGB(28, 18, 48),
+        Accent=Color3.fromRGB(180, 120, 255),
+        Accent2=Color3.fromRGB(80, 180, 255),
+        White=Color3.fromRGB(245, 240, 255),
+        Muted=Color3.fromRGB(140, 120, 180),
+        Off=Color3.fromRGB(35, 25, 55),
+        Red=Color3.fromRGB(255, 100, 140),
+        Border=Color3.fromRGB(160, 100, 255),
+        Corner=16,
+        StrokeThick=1.4,
     },
-    Cartoon = {
-        Background=Color3.fromRGB(25,15,40), Sidebar=Color3.fromRGB(40,25,60), Card=Color3.fromRGB(55,35,80),
-        Element=Color3.fromRGB(70,45,100), Accent=Color3.fromRGB(255,120,200), Accent2=Color3.fromRGB(120,180,255),
-        White=Color3.fromRGB(255,240,255), Muted=Color3.fromRGB(180,150,200), Off=Color3.fromRGB(60,40,80),
-        Red=Color3.fromRGB(255,100,140),
+    Lego = {
+        Name="Lego",
+        Background=Color3.fromRGB(25, 30, 40),
+        Sidebar=Color3.fromRGB(35, 45, 60),
+        Card=Color3.fromRGB(50, 60, 80),
+        Element=Color3.fromRGB(70, 85, 110),
+        Accent=Color3.fromRGB(255, 200, 40),
+        Accent2=Color3.fromRGB(0, 120, 255),
+        White=Color3.fromRGB(255, 255, 255),
+        Muted=Color3.fromRGB(180, 190, 200),
+        Off=Color3.fromRGB(60, 70, 85),
+        Red=Color3.fromRGB(220, 40, 40),
+        Border=Color3.fromRGB(255, 180, 0),
+        Corner=4,
+        StrokeThick=3,
     },
-    Default = {
-        Background=Color3.fromRGB(18,18,22), Sidebar=Color3.fromRGB(28,28,34), Card=Color3.fromRGB(36,36,44),
-        Element=Color3.fromRGB(48,48,58), Accent=Color3.fromRGB(160,50,255), Accent2=Color3.fromRGB(100,80,200),
-        White=Color3.fromRGB(235,230,245), Muted=Color3.fromRGB(140,135,160), Off=Color3.fromRGB(50,50,60),
-        Red=Color3.fromRGB(255,90,110),
+    Ramadhan = {
+        Name="Ramadhan",
+        Background=Color3.fromRGB(8, 18, 12),
+        Sidebar=Color3.fromRGB(12, 28, 18),
+        Card=Color3.fromRGB(18, 36, 24),
+        Element=Color3.fromRGB(28, 50, 35),
+        Accent=Color3.fromRGB(218, 175, 70),
+        Accent2=Color3.fromRGB(40, 160, 90),
+        White=Color3.fromRGB(255, 250, 235),
+        Muted=Color3.fromRGB(150, 160, 130),
+        Off=Color3.fromRGB(35, 50, 40),
+        Red=Color3.fromRGB(200, 80, 60),
+        Border=Color3.fromRGB(200, 160, 50),
+        Corner=14,
+        StrokeThick=1.5,
     },
 }
 local T = Themes.Modern
+
+local ThemeDecor = nil -- decorative overlay folder inside Main
+
+local function ClearThemeDecor()
+    if ThemeDecor then pcall(function() ThemeDecor:Destroy() end) ThemeDecor = nil end
+end
+
+local function ApplyTheme(name)
+    local th = Themes[name] or Themes.Modern
+    T = th
+    B.Settings.UI.Theme = name
+
+    -- core shells
+    local Main = B.Main
+    local Header = B.Header
+    local Sidebar = B.Sidebar
+    local MainBorder = B.MainBorder
+    local OpenBtn = B.OpenBtn
+    if not Main then Notify("THEME", "Panel not ready"); return end
+
+    Main.BackgroundColor3 = th.Background
+    if Header then Header.BackgroundColor3 = th.Sidebar end
+    if Sidebar then Sidebar.BackgroundColor3 = th.Sidebar end
+    if MainBorder then
+        MainBorder.Color = th.Border
+        MainBorder.Thickness = th.StrokeThick
+    end
+    if OpenBtn then
+        OpenBtn.BackgroundColor3 = th.Accent
+        OpenBtn.TextColor3 = th.Background
+    end
+
+    for _, obj in ipairs({Main, Header, Sidebar}) do
+        if obj then
+            local c = obj:FindFirstChildOfClass("UICorner")
+            if c then c.CornerRadius = UDim.new(0, th.Corner) end
+        end
+    end
+
+    ClearThemeDecor()
+    ThemeDecor = Instance.new("Folder")
+    ThemeDecor.Name = "ThemeDecor"
+    ThemeDecor.Parent = Main
+
+    if name == "Galaxy" then
+        -- soft nebula gradient bar under header
+        local neb = Instance.new("Frame")
+        neb.Size = UDim2.new(1, 0, 0, 3)
+        neb.Position = UDim2.fromOffset(0, 52)
+        neb.BorderSizePixel = 0
+        neb.BackgroundColor3 = th.Accent
+        neb.ZIndex = 15
+        neb.Parent = ThemeDecor
+        local g = Instance.new("UIGradient")
+        g.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 40, 160)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(180, 120, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 160, 255)),
+        })
+        g.Parent = neb
+        -- floating star dots
+        for i = 1, 12 do
+            local s = Instance.new("Frame")
+            s.Size = UDim2.fromOffset(2, 2)
+            s.Position = UDim2.new(math.random(), 0, math.random(), 0)
+            s.BackgroundColor3 = Color3.fromRGB(220, 210, 255)
+            s.BackgroundTransparency = 0.3
+            s.BorderSizePixel = 0
+            s.ZIndex = 15
+            s.Parent = ThemeDecor
+            Instance.new("UICorner", s).CornerRadius = UDim.new(1, 0)
+            task.spawn(function()
+                while s.Parent do
+                    TweenService:Create(s, TweenInfo.new(1.5 + math.random(), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+                        BackgroundTransparency = 0.8
+                    }):Play()
+                    task.wait(2)
+                end
+            end)
+        end
+        -- elegant side accent line
+        local line = Instance.new("Frame")
+        line.Size = UDim2.new(0, 2, 1, -60)
+        line.Position = UDim2.fromOffset(128, 58)
+        line.BackgroundColor3 = th.Accent
+        line.BackgroundTransparency = 0.5
+        line.BorderSizePixel = 0
+        line.ZIndex = 15
+        line.Parent = ThemeDecor
+
+    elseif name == "Lego" then
+        -- stud row under header (Lego bumps)
+        local studBar = Instance.new("Frame")
+        studBar.Size = UDim2.new(1, -20, 0, 14)
+        studBar.Position = UDim2.fromOffset(10, 54)
+        studBar.BackgroundColor3 = Color3.fromRGB(255, 200, 40)
+        studBar.BorderSizePixel = 0
+        studBar.ZIndex = 15
+        studBar.Parent = ThemeDecor
+        Instance.new("UICorner", studBar).CornerRadius = UDim.new(0, 2)
+        local list = Instance.new("UIListLayout")
+        list.FillDirection = Enum.FillDirection.Horizontal
+        list.Padding = UDim.new(0, 6)
+        list.Parent = studBar
+        for i = 1, 14 do
+            local stud = Instance.new("Frame")
+            stud.Size = UDim2.fromOffset(10, 10)
+            stud.BackgroundColor3 = Color3.fromRGB(255, 220, 80)
+            stud.BorderSizePixel = 0
+            stud.LayoutOrder = i
+            stud.Parent = studBar
+            Instance.new("UICorner", stud).CornerRadius = UDim.new(1, 0)
+        end
+        -- thick colored sidebar stripe
+        local stripe = Instance.new("Frame")
+        stripe.Size = UDim2.new(0, 6, 1, -70)
+        stripe.Position = UDim2.fromOffset(0, 60)
+        stripe.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+        stripe.BorderSizePixel = 0
+        stripe.ZIndex = 15
+        stripe.Parent = ThemeDecor
+
+    elseif name == "Ramadhan" then
+        -- gold top line
+        local gold = Instance.new("Frame")
+        gold.Size = UDim2.new(1, 0, 0, 3)
+        gold.Position = UDim2.fromOffset(0, 52)
+        gold.BackgroundColor3 = th.Accent
+        gold.BorderSizePixel = 0
+        gold.ZIndex = 15
+        gold.Parent = ThemeDecor
+        local gg = Instance.new("UIGradient")
+        gg.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 100, 60)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(218, 175, 70)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 100, 60)),
+        })
+        gg.Parent = gold
+        -- crescent + ketupat labels (text decor)
+        local decor = Instance.new("TextLabel")
+        decor.Size = UDim2.new(1, -20, 0, 18)
+        decor.Position = UDim2.fromOffset(10, Main.AbsoluteSize.Y > 0 and 0 or 0)
+        decor.Position = UDim2.new(0, 140, 1, -22)
+        decor.BackgroundTransparency = 1
+        decor.Text = "✦  Ramadhan Mubarak  ✦  Ketupat · Kurma · Berkah"
+        decor.TextColor3 = th.Accent
+        decor.Font = Enum.Font.Gotham
+        decor.TextSize = 10
+        decor.ZIndex = 16
+        decor.Parent = ThemeDecor
+        -- soft lantern dots
+        for i = 1, 5 do
+            local lan = Instance.new("Frame")
+            lan.Size = UDim2.fromOffset(6, 8)
+            lan.Position = UDim2.new(0.15 + i * 0.12, 0, 0, 56)
+            lan.BackgroundColor3 = Color3.fromRGB(255, 200, 80)
+            lan.BackgroundTransparency = 0.2
+            lan.BorderSizePixel = 0
+            lan.ZIndex = 15
+            lan.Parent = ThemeDecor
+            Instance.new("UICorner", lan).CornerRadius = UDim.new(0, 3)
+        end
+
+    else -- Modern
+        local bar = Instance.new("Frame")
+        bar.Size = UDim2.new(1, 0, 0, 2)
+        bar.Position = UDim2.fromOffset(0, 52)
+        bar.BackgroundColor3 = th.Accent
+        bar.BorderSizePixel = 0
+        bar.ZIndex = 15
+        bar.Parent = ThemeDecor
+        local mg = Instance.new("UIGradient")
+        mg.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, th.Accent),
+            ColorSequenceKeypoint.new(1, th.Accent2),
+        })
+        mg.Parent = bar
+        -- pulse accent
+        task.spawn(function()
+            while bar.Parent do
+                TweenService:Create(bar, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+                    BackgroundTransparency = 0.4
+                }):Play()
+                task.wait(1.3)
+            end
+        end)
+    end
+
+    Notify("THEME", name .. " applied")
+end
+
 
 local ColorPresets = {
     Cyan   = {vis=Color3.fromRGB(0,230,200), hid=Color3.fromRGB(255,85,105), pri=Color3.fromRGB(255,200,50), tr=Color3.fromRGB(0,230,200), fov=Color3.fromRGB(0,230,200), box=Color3.fromRGB(0,230,200)},
@@ -273,6 +504,7 @@ local Main = New("Frame", {Name="Main", Size=UDim2.fromOffset(560,380), Position
 Round(Main, 16)
 local MainBorder = Stroke(Main, T.Accent, 0.35)
 local MainScale = New("UIScale", {Scale=1}, Main)
+B.Main, B.MainBorder, B.MainScale = Main, MainBorder, MainScale
 
 local Header = New("Frame", {Size=UDim2.new(1,0,0,52), BackgroundColor3=T.Sidebar, BorderSizePixel=0, ZIndex=12}, Main)
 Round(Header, 16)
@@ -296,6 +528,7 @@ local CloseBtn = HBtn("×", -36, T.Red)
 -- Sidebar
 local Sidebar = New("Frame", {Position=UDim2.fromOffset(10,60), Size=UDim2.new(0,120,1,-70), BackgroundColor3=T.Sidebar, BorderSizePixel=0, ZIndex=11}, Main)
 Round(Sidebar, 12)
+B.Header, B.Sidebar = Header, Sidebar
 New("TextLabel", {Position=UDim2.fromOffset(10,8), Size=UDim2.new(1,-16,0,14), BackgroundTransparency=1, Text="MAIN MENU", TextColor3=T.Muted, Font=Enum.Font.GothamBold, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=12}, Sidebar)
 
 local TabHolder = New("Frame", {Position=UDim2.fromOffset(6,28), Size=UDim2.new(1,-12,0,260), BackgroundTransparency=1, ZIndex=12}, Sidebar)
@@ -310,7 +543,7 @@ local Content = New("ScrollingFrame", {
 local ContentLayout = New("UIListLayout", {Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}, Content)
 New("UIPadding", {PaddingBottom=UDim.new(0,6), PaddingRight=UDim.new(0,4)}, Content)
 
-local SideNames = {"Home","ESP","Aim","Brutal","LocalCfg","Troll","Settings"}
+local SideNames = {"Home","ESP","Aim","Brutal","LocalCfg","Settings"}
 local TabButtons, CurrentTab = {}, "Home"
 local PageBuilders = {}
 
@@ -570,7 +803,6 @@ PageBuilders.Brutal = function()
     Toggle(w, 78, "Infinite Ammo", "Ammo refill", S.InfiniteAmmo, function(v) B.Settings.Brutal.InfiniteAmmo=v end)
     Toggle(w, 114, "Attack Speed 1-12", "Safe rate", S.AttackSpeed, function(v) B.Settings.Brutal.AttackSpeed=v end)
     Slider(w, 150, "Attack Speed Val", 1, 12, S.AttackSpeedVal, function(v) B.Settings.Brutal.AttackSpeedVal=v end)
-    Toggle(w, 192, "Auto Kill silent", "Snap+fire nearest", S.AutoKill, function(v) B.Settings.Brutal.AutoKill=v end)
 
     local fk = Card("FLY KILL ALL", "Fly up + TP enemies + shoot", 100)
     Toggle(fk, 42, "Fly Kill All", "Hover + pull enemies + auto fire", S.FlyKillAll, function(v)
@@ -804,70 +1036,29 @@ PageBuilders.LocalCfg = function()
     end)
 end
 
-PageBuilders.Troll = function()
-    ClearContent()
-    local S = B.Settings.Troll
-    local fb = Card("FAKE BAN MESSAGE", "Popup di layar kamu / local", 200)
-    New("TextLabel", {Position=UDim2.fromOffset(12,42), Size=UDim2.new(1,-24,0,36), BackgroundTransparency=1, Text="Default: Code 2A disconnect style", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, TextWrapped=true, ZIndex=13}, fb)
-    Action(fb, 84, "Use DEFAULT ban text", function()
-        B.Settings.Troll.FakeBanText = "You have been banned.\\nReason: Suspicious activity detected Or Extreme Ping (Code 2A)"
-        Notify("TROLL", "Default text set")
-    end)
-    Action(fb, 116, "Custom: Exploiting", function()
-        B.Settings.Troll.FakeBanText = "Account banned.\\nReason: Exploiting / Third-party software."
-        Notify("TROLL", "Custom set")
-    end)
-    Action(fb, 148, "SHOW FAKE BAN NOW", function()
-        if B.FakeBanGui then pcall(function() B.FakeBanGui:Destroy() end) end
-        local g = New("Frame", {Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.fromRGB(0,0,0), BackgroundTransparency=0.3, ZIndex=200, BorderSizePixel=0}, ScreenGui)
-        local card = New("Frame", {Size=UDim2.fromOffset(340,200), Position=UDim2.new(0.5,-170,0.5,-100), BackgroundColor3=Color3.fromRGB(30,30,35), BorderSizePixel=0, ZIndex=201}, g)
-        Round(card, 12)
-        New("TextLabel", {Size=UDim2.new(1,-20,0,28), Position=UDim2.fromOffset(10,16), BackgroundTransparency=1, Text="Koneksi Terputus", TextColor3=Color3.fromRGB(255,255,255), Font=Enum.Font.GothamBold, TextSize=18, ZIndex=202}, card)
-        New("TextLabel", {Size=UDim2.new(1,-24,0,80), Position=UDim2.fromOffset(12,50), BackgroundTransparency=1, Text=B.Settings.Troll.FakeBanText or "Banned", TextColor3=Color3.fromRGB(200,200,200), Font=Enum.Font.Gotham, TextSize=12, TextWrapped=true, TextYAlignment=Enum.TextYAlignment.Top, ZIndex=202}, card)
-        local okb = New("TextButton", {Size=UDim2.fromOffset(100,32), Position=UDim2.new(0.5,-50,1,-48), BackgroundColor3=Color3.fromRGB(0,120,200), Text="OK", TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold, TextSize=13, ZIndex=202, AutoButtonColor=false}, card)
-        Round(okb, 8)
-        okb.MouseButton1Click:Connect(function() g:Destroy(); B.FakeBanGui=nil end)
-        B.FakeBanGui = g
-    end)
-
-    local o = Card("OTHER TROLL", "Client FX", 100)
-    Action(o, 42, "Flash screen white", function()
-        local f = New("Frame", {Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.new(1,1,1), BackgroundTransparency=0, ZIndex=180, BorderSizePixel=0}, ScreenGui)
-        TweenService:Create(f, TweenInfo.new(0.6), {BackgroundTransparency=1}):Play()
-        task.delay(0.7, function() f:Destroy() end)
-    end)
-    Action(o, 74, "Notify fake kick", function()
-        Notify("SYSTEM", "Connection lost — Code 2A")
-    end)
-end
-
 PageBuilders.Settings = function()
     ClearContent()
-    local th = Card("PANEL THEME", "4 styles", 180)
-    Action(th, 42, "Theme: Modern (Cyan)", function()
-        T = Themes.Modern; B.Settings.UI.Theme="Modern"
-        Main.BackgroundColor3=T.Background; Header.BackgroundColor3=T.Sidebar; Sidebar.BackgroundColor3=T.Sidebar
-        MainBorder.Color=T.Accent; Notify("THEME", "Modern")
-    end)
-    Action(th, 74, "Theme: Hacker (Green)", function()
-        T = Themes.Hacker; B.Settings.UI.Theme="Hacker"
-        Main.BackgroundColor3=T.Background; Header.BackgroundColor3=T.Sidebar; Sidebar.BackgroundColor3=T.Sidebar
-        MainBorder.Color=T.Accent; Notify("THEME", "Hacker")
-    end)
-    Action(th, 106, "Theme: Cartoon (Pink)", function()
-        T = Themes.Cartoon; B.Settings.UI.Theme="Cartoon"
-        Main.BackgroundColor3=T.Background; Header.BackgroundColor3=T.Sidebar; Sidebar.BackgroundColor3=T.Sidebar
-        MainBorder.Color=T.Accent; Notify("THEME", "Cartoon")
-    end)
-    Action(th, 138, "Theme: Default (Purple)", function()
-        T = Themes.Default; B.Settings.UI.Theme="Default"
-        Main.BackgroundColor3=T.Background; Header.BackgroundColor3=T.Sidebar; Sidebar.BackgroundColor3=T.Sidebar
-        MainBorder.Color=T.Accent; Notify("THEME", "Default")
-    end)
+    local th = Card("TAMPILAN PANEL", "Pilih tema UI premium", 220)
+    Action(th, 42, "✦  GALAKSI — elegan ungu bintang", function() ApplyTheme("Galaxy") end)
+    Action(th, 74, "■  LEGO — kotak Roblox stud", function() ApplyTheme("Lego") end)
+    Action(th, 106, "☪  RAMADHAN — emas & hijau", function() ApplyTheme("Ramadhan") end)
+    Action(th, 138, "◆  MODERN — cyan default polish", function() ApplyTheme("Modern") end)
+    New("TextLabel", {
+        Position = UDim2.fromOffset(12, 175),
+        Size = UDim2.new(1, -24, 0, 30),
+        BackgroundTransparency = 1,
+        Text = "Tema mengubah warna, sudut, border & dekor panel.",
+        TextColor3 = T.Muted,
+        Font = Enum.Font.Gotham,
+        TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+        ZIndex = 13,
+    }, th)
 
     local pr = Card("PROTECT", "Anti kick / hop", 140)
-    Toggle(pr, 42, "Anti-Kick Watch", "Detect kick UI", true, function(v) B.Settings.Protect.AntiKick=v end)
-    Toggle(pr, 78, "Auto Hop on Flag", "Teleport on detect", true, function(v) B.Settings.Protect.AutoHopOnFlag=v end)
+    Toggle(pr, 42, "Anti-Kick Watch", "Detect kick UI", B.Settings.Protect.AntiKick, function(v) B.Settings.Protect.AntiKick=v end)
+    Toggle(pr, 78, "Auto Hop on Flag", "Teleport on detect", B.Settings.Protect.AutoHopOnFlag, function(v) B.Settings.Protect.AutoHopOnFlag=v end)
     Action(pr, 114, "FORCE SERVER HOP", function()
         pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
     end)
@@ -887,18 +1078,6 @@ PageBuilders.Settings = function()
     Action(un, 42, "UNLOAD SCRIPT", function()
         CleanupAll(); ScreenGui:Destroy(); getgenv().BAXTARA=nil
     end)
-end
-
--- Tabs
-local function SelectTab(name)
-    CurrentTab = name
-    for n, btn in pairs(TabButtons) do
-        local active = (n == name)
-        TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = active and T.Element or T.Sidebar}):Play()
-        local ind = btn:FindFirstChild("Ind")
-        if ind then ind.BackgroundTransparency = active and 0 or 1 end
-    end
-    if PageBuilders[name] then PageBuilders[name]() end
 end
 
 for i, name in ipairs(SideNames) do
@@ -1576,6 +1755,7 @@ end))
 
 local OpenBtn=New("TextButton", {Size=UDim2.fromOffset(46,46), Position=UDim2.new(1,-58,0.5,-23), BackgroundColor3=T.Accent, Text="BX", TextColor3=T.Background, Font=Enum.Font.GothamBlack, TextSize=14, Visible=false, ZIndex=20, AutoButtonColor=false}, ScreenGui)
 Round(OpenBtn, 23)
+B.OpenBtn = OpenBtn
 OpenBtn.MouseButton1Click:Connect(function() if Main.Visible then HidePanel() else ShowPanel() end end)
 
 
