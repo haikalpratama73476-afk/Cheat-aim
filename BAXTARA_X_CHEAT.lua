@@ -170,7 +170,15 @@ local State = {
     ChatBubble = false,
     FreezeOthers = false,
     AntiLag = false,
+    HitboxHead = false,
+    ESPHue = 0.55,
+    ESPSat = 0.9,
+    ESPVal = 1.0,
+    ModernESP = false,
+    ModernAim = false,
+    PanelHidden = false,
 }
+
 
 
 local Theme = Themes[State.Theme]
@@ -630,6 +638,7 @@ local PageNames = {
     { Name = "OVERVIEW", Icon = "⌂" },
     { Name = "AIM", Icon = "◎" },
     { Name = "ESP", Icon = "▣" },
+    { Name = "MODERN", Icon = "◆" },
     { Name = "BRUTAL", Icon = "⚡" },
     { Name = "LOCAL", Icon = "⚙" },
     { Name = "APPEARANCE", Icon = "◈" },
@@ -1275,7 +1284,7 @@ local function pageAim()
 end
 
 local function pageESP()
-    addSectionHeading(Content, "ESP", "Boxes, tracers, skeleton, NPC.")
+    addSectionHeading(Content, "ESP", "Boxes, tracers, skeleton, NPC, custom color.")
     local y = 72
     addToggle(Content, "Enable ESP", "Master ESP switch", "ESPEnabled", y); y = y + 58
     addToggle(Content, "Box", "Player boxes", "ESPBox", y); y = y + 58
@@ -1285,6 +1294,9 @@ local function pageESP()
     addToggle(Content, "Tracer", "Line to players", "ESPTracer", y); y = y + 58
     addToggle(Content, "Skeleton", "Bone lines", "ESPSkeleton", y); y = y + 58
     addToggle(Content, "NPC / Bot ESP", "Non-player models", "ESPNPC", y); y = y + 58
+    addSlider(Content, "ESP Color Hue", "0–1 full spectrum", "ESPHue", 0, 1, y); y = y + 78
+    addSlider(Content, "ESP Saturation", "Color intensity", "ESPSat", 0, 1, y); y = y + 78
+    addSlider(Content, "ESP Brightness", "Value / brightness", "ESPVal", 0.2, 1, y); y = y + 78
     addAction(Content, "Tracer origin: BOTTOM", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
         State.TracerOrigin = "Bottom"; notify("Tracer → Bottom")
     end); y = y + 42
@@ -1293,6 +1305,10 @@ local function pageESP()
     end); y = y + 42
     addAction(Content, "Tracer origin: TOP", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
         State.TracerOrigin = "Top"; notify("Tracer → Top")
+    end); y = y + 42
+    addAction(Content, "Tracer origin: EDGE", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        State.TracerOrigin = (State.TracerOrigin == "Left") and "Right" or "Left"
+        notify("Tracer → " .. State.TracerOrigin)
     end)
 end
 
@@ -1307,7 +1323,8 @@ local function pageBrutal()
     addToggle(Content, "Noclip", "No collision", "Noclip", y); y = y + 58
     addToggle(Content, "God Mode", "Local HP refill", "GodMode", y); y = y + 58
     addToggle(Content, "Ghost Mode", "Local invisible", "GhostMode", y); y = y + 58
-    addToggle(Content, "Hitbox Expand", "Enlarge head/body", "Hitbox", y); y = y + 58
+    addToggle(Content, "Hitbox Expand", "Enlarge target parts", "Hitbox", y); y = y + 58
+    addToggle(Content, "Hitbox = HEAD (off Body)", "Head vs body expand", "HitboxHead", y); y = y + 58
     addSlider(Content, "Hitbox Size", "2–27 studs", "HitboxSize", 2, 27, y); y = y + 78
     addToggle(Content, "Spin Bot", "Rotate character", "SpinBot", y); y = y + 58
     addSlider(Content, "Spin Speed", "1–120", "SpinSpeed", 1, 120, y); y = y + 78
@@ -1325,20 +1342,39 @@ local function pageLocal()
     addToggle(Content, "Chat Bubble", "Local bubble text", "ChatBubble", y); y = y + 58
     addToggle(Content, "Freeze Others", "Anchor other HRPs", "FreezeOthers", y); y = y + 58
     addToggle(Content, "Anti Lag Self", "Low graphics", "AntiLag", y); y = y + 58
-    addAction(Content, "TP nearest player", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        if Features and Features.TPNearest then Features.TPNearest() end
-        notify("TP nearest")
+    addAction(Content, "OPEN TP PLAYER LIST", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        if Features and Features.OpenTPList then Features.OpenTPList() end
     end); y = y + 42
     addAction(Content, "TP all players in front", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
         if Features and Features.TPAllFront then Features.TPAllFront() end
         notify("TP all front")
+    end); y = y + 42
+    addAction(Content, "HIDE / SHOW PANEL", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        if Main then
+            Main.Visible = not Main.Visible
+            State.PanelHidden = not Main.Visible
+            if Launcher then Launcher.Visible = true end
+            notify(Main.Visible and "Panel shown" or "Panel hidden — BX to reopen")
+        end
     end)
 end
+
+local function pageModern()
+    addSectionHeading(Content, "MODERN MODE", "Different ESP geometry + premium aim feel.")
+    local y = 72
+    addToggle(Content, "Modern ESP Style", "Corner brackets + dashed tracers", "ModernESP", y); y = y + 58
+    addToggle(Content, "Modern Aim", "Predictive soft lock + FOV pulse", "ModernAim", y); y = y + 58
+    addAction(Content, "Style note: corners not full box", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        notify("Modern ESP uses corner brackets + angled tracers")
+    end)
+end
+
 
 local PageRenderers = {
     OVERVIEW = pageOverview,
     AIM = pageAim,
     ESP = pageESP,
+    MODERN = pageModern,
     BRUTAL = pageBrutal,
     LOCAL = pageLocal,
     APPEARANCE = pageAppearance,
@@ -2004,8 +2040,398 @@ renderUI = function()
     renderer()
 end
 
-renderUI()
 
+-- ========== KEY GATE + LOADING ==========
+local KEY_VALID = "BAXTARA X CHEAT"
+local KEY_FILE = "baxtara_x_key.txt"
+local function keySaved()
+    local ok, data = pcall(function()
+        if isfile and isfile(KEY_FILE) and readfile then return readfile(KEY_FILE) end
+        return getgenv().BAXTARA_KEY_SAVE
+    end)
+    return ok and data and tostring(data):gsub("^%s+",""):gsub("%s+$","") == KEY_VALID
+end
+local function saveKey()
+    pcall(function()
+        if writefile then writefile(KEY_FILE, KEY_VALID) end
+        getgenv().BAXTARA_KEY_SAVE = KEY_VALID
+        getgenv().BAXTARA_UNLOCKED = true
+    end)
+end
+
+local function drawLogo(parent, pos, size)
+    -- geometric BX logo (no emoji)
+    local host = Instance.new("Frame")
+    host.BackgroundTransparency = 1
+    host.Position = pos
+    host.Size = UDim2.fromOffset(size, size)
+    host.ZIndex = 50
+    host.Parent = parent
+    local ring = Instance.new("Frame")
+    ring.AnchorPoint = Vector2.new(0.5, 0.5)
+    ring.Position = UDim2.fromScale(0.5, 0.5)
+    ring.Size = UDim2.fromScale(1, 1)
+    ring.BackgroundTransparency = 1
+    ring.ZIndex = 50
+    ring.Parent = host
+    local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(1, 0); rc.Parent = ring
+    local rs = Instance.new("UIStroke"); rs.Color = Color3.fromRGB(0, 220, 200); rs.Thickness = 2; rs.Parent = ring
+    local core = Instance.new("Frame")
+    core.AnchorPoint = Vector2.new(0.5, 0.5)
+    core.Position = UDim2.fromScale(0.5, 0.5)
+    core.Size = UDim2.fromScale(0.62, 0.62)
+    core.BackgroundColor3 = Color3.fromRGB(0, 180, 160)
+    core.BorderSizePixel = 0
+    core.ZIndex = 51
+    core.Parent = host
+    local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 10); cc.Parent = core
+    local bx = Instance.new("TextLabel")
+    bx.Size = UDim2.fromScale(1, 1)
+    bx.BackgroundTransparency = 1
+    bx.Text = "BX"
+    bx.TextColor3 = Color3.fromRGB(8, 12, 20)
+    bx.Font = Enum.Font.GothamBlack
+    bx.TextScaled = true
+    bx.ZIndex = 52
+    bx.Parent = core
+    return host
+end
+
+local function runCartoonLoading(done)
+    local layer = Instance.new("Frame")
+    layer.Size = UDim2.fromScale(1, 1)
+    layer.BackgroundColor3 = Color3.fromRGB(20, 24, 40)
+    layer.BorderSizePixel = 0
+    layer.ZIndex = 100
+    layer.Parent = ScreenGui
+    local a = Instance.new("Frame")
+    a.Size = UDim2.fromOffset(70, 90)
+    a.Position = UDim2.new(0.3, -35, 0.5, -45)
+    a.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
+    a.BorderSizePixel = 0
+    a.ZIndex = 101
+    a.Parent = layer
+    Instance.new("UICorner", a).CornerRadius = UDim.new(0, 16)
+    local b = Instance.new("Frame")
+    b.Size = UDim2.fromOffset(70, 90)
+    b.Position = UDim2.new(0.7, -35, 0.5, -45)
+    b.BackgroundColor3 = Color3.fromRGB(255, 100, 120)
+    b.BorderSizePixel = 0
+    b.ZIndex = 101
+    b.Parent = layer
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 16)
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Position = UDim2.new(0, 0, 0.5, 70)
+    title.BackgroundTransparency = 1
+    title.Text = "BAXTARA  VS  CHEAT"
+    title.TextColor3 = Color3.fromRGB(240, 245, 255)
+    title.Font = Enum.Font.GothamBlack
+    title.TextSize = 16
+    title.ZIndex = 102
+    title.Parent = layer
+    -- fight bounce
+    task.spawn(function()
+        for i = 1, 8 do
+            TweenService:Create(a, TweenInfo.new(0.12), {Position = UDim2.new(0.42, -35, 0.5, -45 + (i%2)*10)}):Play()
+            TweenService:Create(b, TweenInfo.new(0.12), {Position = UDim2.new(0.58, -35, 0.5, -45 - (i%2)*10)}):Play()
+            task.wait(0.13)
+        end
+        -- smash
+        TweenService:Create(a, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -80, 0.5, -45), Rotation = -25}):Play()
+        TweenService:Create(b, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, 10, 0.5, -45), Rotation = 25}):Play()
+        task.wait(0.25)
+        -- shatter particles
+        for i = 1, 14 do
+            local p = Instance.new("Frame")
+            p.Size = UDim2.fromOffset(math.random(6, 14), math.random(6, 14))
+            p.Position = UDim2.new(0.5, math.random(-20, 20), 0.5, math.random(-20, 20))
+            p.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(80, 160, 255) or Color3.fromRGB(255, 100, 120)
+            p.BorderSizePixel = 0
+            p.ZIndex = 103
+            p.Parent = layer
+            Instance.new("UICorner", p).CornerRadius = UDim.new(0, 3)
+            TweenService:Create(p, TweenInfo.new(0.45), {
+                Position = UDim2.new(0.5, math.random(-220, 220), 0.5, math.random(-160, 160)),
+                BackgroundTransparency = 1,
+                Rotation = math.random(-90, 90),
+            }):Play()
+        end
+        TweenService:Create(a, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(b, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(title, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+        task.wait(0.5)
+        TweenService:Create(layer, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
+        task.wait(0.3)
+        layer:Destroy()
+        if done then done() end
+    end)
+end
+
+local function runTerminalLoading(done)
+    local layer = Instance.new("Frame")
+    layer.Size = UDim2.fromScale(1, 1)
+    layer.BackgroundColor3 = Color3.fromRGB(6, 10, 14)
+    layer.BorderSizePixel = 0
+    layer.ZIndex = 100
+    layer.Parent = ScreenGui
+    drawLogo(layer, UDim2.new(0.5, -36, 0.22, 0), 72)
+    local term = Instance.new("Frame")
+    term.Size = UDim2.fromOffset(340, 160)
+    term.Position = UDim2.new(0.5, -170, 0.5, -40)
+    term.BackgroundColor3 = Color3.fromRGB(10, 16, 22)
+    term.BorderSizePixel = 0
+    term.ZIndex = 101
+    term.Parent = layer
+    Instance.new("UICorner", term).CornerRadius = UDim.new(0, 8)
+    local ts = Instance.new("UIStroke"); ts.Color = Color3.fromRGB(0, 200, 160); ts.Thickness = 1; ts.Parent = term
+    local log = Instance.new("TextLabel")
+    log.Size = UDim2.new(1, -20, 1, -20)
+    log.Position = UDim2.fromOffset(10, 10)
+    log.BackgroundTransparency = 1
+    log.TextXAlignment = Enum.TextXAlignment.Left
+    log.TextYAlignment = Enum.TextYAlignment.Top
+    log.TextColor3 = Color3.fromRGB(0, 255, 180)
+    log.Font = Enum.Font.Code
+    log.TextSize = 12
+    log.Text = ""
+    log.ZIndex = 102
+    log.Parent = term
+    -- computer body (drawn)
+    local pc = Instance.new("Frame")
+    pc.Size = UDim2.fromOffset(90, 60)
+    pc.Position = UDim2.new(0.5, -100, 0.72, 0)
+    pc.BackgroundColor3 = Color3.fromRGB(40, 50, 60)
+    pc.BorderSizePixel = 0
+    pc.ZIndex = 101
+    pc.Parent = layer
+    Instance.new("UICorner", pc).CornerRadius = UDim.new(0, 4)
+    local screen = Instance.new("Frame")
+    screen.Size = UDim2.new(1, -10, 0.55, 0)
+    screen.Position = UDim2.fromOffset(5, 5)
+    screen.BackgroundColor3 = Color3.fromRGB(0, 180, 140)
+    screen.BorderSizePixel = 0
+    screen.ZIndex = 102
+    screen.Parent = pc
+    -- screwdriver (rotating tool drawn)
+    local tool = Instance.new("Frame")
+    tool.Size = UDim2.fromOffset(8, 50)
+    tool.AnchorPoint = Vector2.new(0.5, 0.5)
+    tool.Position = UDim2.new(0.5, 50, 0.72, 30)
+    tool.BackgroundColor3 = Color3.fromRGB(180, 190, 200)
+    tool.BorderSizePixel = 0
+    tool.ZIndex = 102
+    tool.Parent = layer
+    local handle = Instance.new("Frame")
+    handle.Size = UDim2.fromOffset(16, 22)
+    handle.Position = UDim2.new(0.5, -8, 1, -4)
+    handle.BackgroundColor3 = Color3.fromRGB(220, 80, 60)
+    handle.BorderSizePixel = 0
+    handle.ZIndex = 103
+    handle.Parent = tool
+    Instance.new("UICorner", handle).CornerRadius = UDim.new(0, 3)
+    local lines = {
+        "> BAXTARA X CHEAT boot...",
+        "> mount modules [AIM][ESP][BRUTAL]",
+        "> check integrity ........ OK",
+        "> load interface ........ OK",
+        "> screwdriver calibrate..",
+        "> READY.",
+    }
+    task.spawn(function()
+        local rot = 0
+        local spin = true
+        task.spawn(function()
+            while spin and tool.Parent do
+                rot = (rot + 12) % 360
+                tool.Rotation = rot
+                task.wait(0.03)
+            end
+        end)
+        local acc = ""
+        for _, line in ipairs(lines) do
+            acc = acc .. line .. "\n"
+            log.Text = acc
+            task.wait(0.28)
+        end
+        spin = false
+        task.wait(0.35)
+        TweenService:Create(layer, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        task.wait(0.35)
+        layer:Destroy()
+        if done then done() end
+    end)
+end
+
+local function showKeyGate()
+    local gate = Instance.new("Frame")
+    gate.Name = "KeyGate"
+    gate.Size = UDim2.fromScale(1, 1)
+    gate.BackgroundColor3 = Color3.fromRGB(6, 8, 14)
+    gate.BorderSizePixel = 0
+    gate.ZIndex = 200
+    gate.Parent = ScreenGui
+    drawLogo(gate, UDim2.new(0.5, -40, 0.12, 0), 80)
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -40, 0, 28)
+    title.Position = UDim2.new(0, 20, 0.28, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "BAXTARA X CHEAT"
+    title.TextColor3 = Color3.fromRGB(0, 230, 200)
+    title.Font = Enum.Font.GothamBlack
+    title.TextSize = 22
+    title.ZIndex = 201
+    title.Parent = gate
+    local sub = Instance.new("TextLabel")
+    sub.Size = UDim2.new(1, -40, 0, 18)
+    sub.Position = UDim2.new(0, 20, 0.28, 30)
+    sub.BackgroundTransparency = 1
+    sub.Text = "ENTER ACCESS KEY"
+    sub.TextColor3 = Color3.fromRGB(120, 140, 160)
+    sub.Font = Enum.Font.Code
+    sub.TextSize = 12
+    sub.ZIndex = 201
+    sub.Parent = gate
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.fromOffset(300, 40)
+    box.Position = UDim2.new(0.5, -150, 0.42, 0)
+    box.BackgroundColor3 = Color3.fromRGB(18, 24, 36)
+    box.Text = ""
+    box.PlaceholderText = "BAXTARA X CHEAT"
+    box.PlaceholderColor3 = Color3.fromRGB(80, 90, 110)
+    box.TextColor3 = Color3.fromRGB(240, 248, 255)
+    box.Font = Enum.Font.Code
+    box.TextSize = 14
+    box.ClearTextOnFocus = false
+    box.ZIndex = 201
+    box.Parent = gate
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+    local unlock = Instance.new("TextButton")
+    unlock.Size = UDim2.fromOffset(300, 40)
+    unlock.Position = UDim2.new(0.5, -150, 0.42, 52)
+    unlock.BackgroundColor3 = Color3.fromRGB(0, 180, 150)
+    unlock.Text = "UNLOCK"
+    unlock.TextColor3 = Color3.fromRGB(8, 12, 20)
+    unlock.Font = Enum.Font.GothamBlack
+    unlock.TextSize = 14
+    unlock.ZIndex = 201
+    unlock.Parent = gate
+    Instance.new("UICorner", unlock).CornerRadius = UDim.new(0, 8)
+    local saveBtn = Instance.new("TextButton")
+    saveBtn.Size = UDim2.fromOffset(300, 36)
+    saveBtn.Position = UDim2.new(0.5, -150, 0.42, 100)
+    saveBtn.BackgroundColor3 = Color3.fromRGB(30, 40, 55)
+    saveBtn.Text = "SAVE KEY (auto login next time)"
+    saveBtn.TextColor3 = Color3.fromRGB(180, 200, 220)
+    saveBtn.Font = Enum.Font.Gotham
+    saveBtn.TextSize = 12
+    saveBtn.ZIndex = 201
+    saveBtn.Parent = gate
+    Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 8)
+    local doSave = false
+    saveBtn.MouseButton1Click:Connect(function()
+        doSave = not doSave
+        saveBtn.Text = doSave and "SAVE KEY: ON" or "SAVE KEY (auto login next time)"
+        saveBtn.BackgroundColor3 = doSave and Color3.fromRGB(0, 120, 100) or Color3.fromRGB(30, 40, 55)
+    end)
+    local wa = Instance.new("TextButton")
+    wa.Size = UDim2.fromOffset(300, 36)
+    wa.Position = UDim2.new(0.5, -150, 0.42, 148)
+    wa.BackgroundColor3 = Color3.fromRGB(20, 90, 60)
+    wa.Text = "WhatsApp Channel"
+    wa.TextColor3 = Color3.fromRGB(200, 255, 220)
+    wa.Font = Enum.Font.GothamBold
+    wa.TextSize = 12
+    wa.ZIndex = 201
+    wa.Parent = gate
+    Instance.new("UICorner", wa).CornerRadius = UDim.new(0, 8)
+    wa.MouseButton1Click:Connect(function()
+        pcall(function()
+            local link = "https://whatsapp.com/channel/0029Vb8PluMLtOj5TTbxRl1k"
+            if setclipboard then setclipboard(link) end
+            notify("WhatsApp link copied")
+        end)
+    end)
+    local loadPick = Instance.new("TextLabel")
+    loadPick.Size = UDim2.fromOffset(300, 20)
+    loadPick.Position = UDim2.new(0.5, -150, 0.42, 200)
+    loadPick.BackgroundTransparency = 1
+    loadPick.Text = "Loading style after unlock:"
+    loadPick.TextColor3 = Color3.fromRGB(120, 140, 160)
+    loadPick.Font = Enum.Font.Gotham
+    loadPick.TextSize = 11
+    loadPick.ZIndex = 201
+    loadPick.Parent = gate
+    local styleCartoon = true
+    local c1 = Instance.new("TextButton")
+    c1.Size = UDim2.fromOffset(145, 34)
+    c1.Position = UDim2.new(0.5, -150, 0.42, 224)
+    c1.BackgroundColor3 = Color3.fromRGB(0, 140, 120)
+    c1.Text = "CARTUN"
+    c1.TextColor3 = Color3.fromRGB(255, 255, 255)
+    c1.Font = Enum.Font.GothamBold
+    c1.TextSize = 12
+    c1.ZIndex = 201
+    c1.Parent = gate
+    Instance.new("UICorner", c1).CornerRadius = UDim.new(0, 6)
+    local c2 = Instance.new("TextButton")
+    c2.Size = UDim2.fromOffset(145, 34)
+    c2.Position = UDim2.new(0.5, 5, 0.42, 224)
+    c2.BackgroundColor3 = Color3.fromRGB(40, 50, 65)
+    c2.Text = "TERMINAL"
+    c2.TextColor3 = Color3.fromRGB(200, 210, 220)
+    c2.Font = Enum.Font.GothamBold
+    c2.TextSize = 12
+    c2.ZIndex = 201
+    c2.Parent = gate
+    Instance.new("UICorner", c2).CornerRadius = UDim.new(0, 6)
+    c1.MouseButton1Click:Connect(function()
+        styleCartoon = true
+        c1.BackgroundColor3 = Color3.fromRGB(0, 140, 120)
+        c2.BackgroundColor3 = Color3.fromRGB(40, 50, 65)
+    end)
+    c2.MouseButton1Click:Connect(function()
+        styleCartoon = false
+        c2.BackgroundColor3 = Color3.fromRGB(0, 140, 120)
+        c1.BackgroundColor3 = Color3.fromRGB(40, 50, 65)
+    end)
+    local function tryUnlock()
+        local k = (box.Text or ""):gsub("^%s+",""):gsub("%s+$","")
+        if k:upper() == KEY_VALID:upper() then
+            if doSave then saveKey() end
+            gate:Destroy()
+            local function afterLoad()
+                renderUI()
+                openPanel()
+            end
+            if styleCartoon then
+                runCartoonLoading(afterLoad)
+            else
+                runTerminalLoading(afterLoad)
+            end
+        else
+            box.Text = ""
+            box.PlaceholderText = "WRONG KEY"
+            task.delay(1.2, function() if box.Parent then box.PlaceholderText = "BAXTARA X CHEAT" end end)
+        end
+    end
+    unlock.MouseButton1Click:Connect(tryUnlock)
+    box.FocusLost:Connect(function(enter) if enter then tryUnlock() end end)
+end
+
+-- Boot sequence
+if keySaved() or getgenv().BAXTARA_UNLOCKED then
+    task.spawn(function()
+        runTerminalLoading(function()
+            renderUI()
+            -- launcher only until user opens
+        end)
+    end)
+else
+    showKeyGate()
+end
+
+-- connect input (was after renderUI)
 connect(UserInputService.InputChanged, function(input)
     if ActiveSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         ActiveSlider(input.Position.X)
@@ -2250,6 +2676,150 @@ function Features.ClearSelfTag()
     if SelfTagGui then pcall(function() SelfTagGui:Destroy() end) SelfTagGui = nil end
 end
 
+
+function Features.OpenTPList()
+    if Features._TPGui and Features._TPGui.Parent then
+        Features._TPGui:Destroy()
+        Features._TPGui = nil
+        return
+    end
+    local gui = Instance.new("Frame")
+    gui.Name = "BX_TPList"
+    gui.Size = UDim2.fromOffset(280, 360)
+    gui.Position = UDim2.new(0.5, -140, 0.5, -180)
+    gui.BackgroundColor3 = Color3.fromRGB(12, 16, 28)
+    gui.BorderSizePixel = 0
+    gui.ZIndex = 80
+    gui.Parent = ScreenGui
+    Instance.new("UICorner", gui).CornerRadius = UDim.new(0, 12)
+    local st = Instance.new("UIStroke")
+    st.Color = Theme.Accent; st.Thickness = 1.5; st.Parent = gui
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -50, 0, 36)
+    title.Position = UDim2.fromOffset(12, 4)
+    title.BackgroundTransparency = 1
+    title.Text = "TP PLAYERS"
+    title.TextColor3 = Theme.Accent
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 14
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.ZIndex = 81
+    title.Parent = gui
+    local close = Instance.new("TextButton")
+    close.Size = UDim2.fromOffset(28, 28)
+    close.Position = UDim2.new(1, -36, 0, 6)
+    close.BackgroundColor3 = Color3.fromRGB(60, 30, 40)
+    close.Text = "X"
+    close.TextColor3 = Color3.fromRGB(255, 120, 120)
+    close.Font = Enum.Font.GothamBold
+    close.TextSize = 12
+    close.ZIndex = 81
+    close.Parent = gui
+    Instance.new("UICorner", close).CornerRadius = UDim.new(0, 6)
+    close.MouseButton1Click:Connect(function()
+        gui:Destroy()
+        Features._TPGui = nil
+    end)
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Position = UDim2.fromOffset(8, 42)
+    scroll.Size = UDim2.new(1, -16, 1, -50)
+    scroll.BackgroundTransparency = 1
+    scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 3
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.ZIndex = 81
+    scroll.Parent = gui
+    local list = Instance.new("UIListLayout")
+    list.Padding = UDim.new(0, 6)
+    list.Parent = scroll
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local row = Instance.new("Frame")
+            row.Size = UDim2.new(1, -4, 0, 48)
+            row.BackgroundColor3 = Color3.fromRGB(22, 28, 42)
+            row.BorderSizePixel = 0
+            row.ZIndex = 82
+            row.Parent = scroll
+            Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+            local img = Instance.new("ImageLabel")
+            img.Size = UDim2.fromOffset(36, 36)
+            img.Position = UDim2.fromOffset(6, 6)
+            img.BackgroundColor3 = Color3.fromRGB(40, 50, 70)
+            img.BorderSizePixel = 0
+            img.ZIndex = 83
+            img.Parent = row
+            Instance.new("UICorner", img).CornerRadius = UDim.new(0, 6)
+            task.spawn(function()
+                local ok, url = pcall(function()
+                    return Players:GetUserThumbnailAsync(plr.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+                end)
+                if ok and img.Parent then img.Image = url end
+            end)
+            local nm = Instance.new("TextLabel")
+            nm.Position = UDim2.fromOffset(48, 6)
+            nm.Size = UDim2.new(1, -110, 0, 18)
+            nm.BackgroundTransparency = 1
+            nm.Text = plr.DisplayName
+            nm.TextColor3 = Color3.fromRGB(240, 245, 255)
+            nm.Font = Enum.Font.GothamBold
+            nm.TextSize = 12
+            nm.TextXAlignment = Enum.TextXAlignment.Left
+            nm.ZIndex = 83
+            nm.Parent = row
+            local un = Instance.new("TextLabel")
+            un.Position = UDim2.fromOffset(48, 24)
+            un.Size = UDim2.new(1, -110, 0, 14)
+            un.BackgroundTransparency = 1
+            un.Text = "@" .. plr.Name
+            un.TextColor3 = Color3.fromRGB(140, 150, 170)
+            un.Font = Enum.Font.Code
+            un.TextSize = 10
+            un.TextXAlignment = Enum.TextXAlignment.Left
+            un.ZIndex = 83
+            un.Parent = row
+            local tpb = Instance.new("TextButton")
+            tpb.Size = UDim2.fromOffset(48, 28)
+            tpb.Position = UDim2.new(1, -56, 0.5, -14)
+            tpb.BackgroundColor3 = Theme.Accent
+            tpb.Text = "TP"
+            tpb.TextColor3 = Color3.fromRGB(10, 12, 20)
+            tpb.Font = Enum.Font.GothamBold
+            tpb.TextSize = 11
+            tpb.ZIndex = 83
+            tpb.Parent = row
+            Instance.new("UICorner", tpb).CornerRadius = UDim.new(0, 6)
+            tpb.MouseButton1Click:Connect(function()
+                local my = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                local their = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+                if my and their then
+                    my.CFrame = their.CFrame * CFrame.new(0, 0, 3)
+                    notify("TP → " .. plr.DisplayName)
+                else
+                    notify("Target unavailable")
+                end
+            end)
+        end
+    end
+    Features._TPGui = gui
+    -- drag
+    local dragging, start, startPos
+    title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; start = input.Position; startPos = gui.Position
+        end
+    end)
+    title.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local d = input.Position - start
+            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
+end
+
 function Features.TPNearest()
     local my = getRoot(LocalPlayer.Character)
     if not my then return end
@@ -2369,6 +2939,21 @@ local function doAim()
     local smooth = (State.Smooth or 15) / 100
     if State.SilentAim then smooth = 0.85 end
     if State.AntiMiss then smooth = math.clamp(smooth + 0.2, 0.1, 0.9) end
+    if State.ModernAim then
+        smooth = math.clamp(smooth * 0.85, 0.08, 0.7)
+        -- light velocity prediction
+        if part.Parent then
+            local hrp = part.Parent:FindFirstChild("HumanoidRootPart")
+            if hrp and hrp.AssemblyLinearVelocity then
+                local pred = part.Position + hrp.AssemblyLinearVelocity * 0.12
+                Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pred), smooth)
+                if FeatDrawings.FOV then
+                    FeatDrawings.FOV.Radius = (State.FOV or 180) * (1 + 0.06 * math.sin(tick() * 6))
+                end
+                return
+            end
+        end
+    end
     Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, part.Position), smooth)
 end
 
@@ -2376,7 +2961,8 @@ local function destroyESP(id)
     local pack = FeatDrawings.ESP[id]
     if not pack then return end
     for k, d in pairs(pack) do
-        if k == "Skel" then for _, l in ipairs(d) do pcall(function() if l.Remove then l:Remove() end end) end
+        if k == "Skel" or k == "Corners" then
+            if type(d) == "table" then for _, l in ipairs(d) do pcall(function() if l.Remove then l:Remove() end end) end end
         else pcall(function() if d and d.Remove then d:Remove() end end) end
     end
     FeatDrawings.ESP[id] = nil
@@ -2425,13 +3011,53 @@ local function doESP()
         local topS, on = w2s(head.Position + Vector3.new(0, 0.4, 0))
         local botS = select(1, w2s(root.Position - Vector3.new(0, 3, 0)))
         local rootS = select(1, w2s(root.Position))
-        local col = Theme.Accent
+        local col = Color3.fromHSV(
+            math.clamp(State.ESPHue or 0.55, 0, 1),
+            math.clamp(State.ESPSat or 0.9, 0, 1),
+            math.clamp(State.ESPVal or 1, 0.2, 1)
+        )
         if State.ESPBox then
             local h = math.max(math.abs(topS.Y - botS.Y), 14)
-            pack.Box.Size = Vector2.new(h * 0.68, h)
-            pack.Box.Position = Vector2.new(topS.X - h * 0.34, topS.Y)
-            pack.Box.Color = col; pack.Box.Visible = on
-        else pack.Box.Visible = false end
+            local w = h * 0.68
+            local px, py = topS.X - w * 0.5, topS.Y
+            if State.ModernESP then
+                -- corner-style: hide full box, use tracer thickness as cue
+                pack.Box.Visible = false
+                if not pack.Corners then
+                    pack.Corners = {}
+                    for i = 1, 8 do
+                        local ln = Drawing.new("Line")
+                        ln.Thickness = 2
+                        pack.Corners[i] = ln
+                    end
+                end
+                local len = math.clamp(w * 0.28, 6, 18)
+                local pts = {
+                    {Vector2.new(px, py), Vector2.new(px + len, py)},
+                    {Vector2.new(px, py), Vector2.new(px, py + len)},
+                    {Vector2.new(px + w, py), Vector2.new(px + w - len, py)},
+                    {Vector2.new(px + w, py), Vector2.new(px + w, py + len)},
+                    {Vector2.new(px, py + h), Vector2.new(px + len, py + h)},
+                    {Vector2.new(px, py + h), Vector2.new(px, py + h - len)},
+                    {Vector2.new(px + w, py + h), Vector2.new(px + w - len, py + h)},
+                    {Vector2.new(px + w, py + h), Vector2.new(px + w, py + h - len)},
+                }
+                for i, seg in ipairs(pts) do
+                    pack.Corners[i].From = seg[1]
+                    pack.Corners[i].To = seg[2]
+                    pack.Corners[i].Color = col
+                    pack.Corners[i].Visible = on
+                end
+            else
+                if pack.Corners then for _, ln in ipairs(pack.Corners) do ln.Visible = false end end
+                pack.Box.Size = Vector2.new(w, h)
+                pack.Box.Position = Vector2.new(px, py)
+                pack.Box.Color = col; pack.Box.Visible = on
+            end
+        else
+            pack.Box.Visible = false
+            if pack.Corners then for _, ln in ipairs(pack.Corners) do ln.Visible = false end end
+        end
         if State.ESPName then
             pack.Name.Text = p.DisplayName or p.Name
             pack.Name.Position = Vector2.new(topS.X, topS.Y - 14)
@@ -2535,7 +3161,7 @@ featConn(RunService.RenderStepped:Connect(function()
     -- hitbox
     if State.Hitbox then
         local size = math.clamp(State.HitboxSize or 8, 2, 27)
-        local useHead = State.HitboxPart == "Head"
+        local useHead = State.HitboxHead == true
         for _, p in ipairs(Players:GetPlayers()) do
             if p == LocalPlayer then continue end
             local char = getChar(p)
