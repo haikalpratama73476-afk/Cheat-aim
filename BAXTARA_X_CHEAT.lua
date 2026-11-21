@@ -177,6 +177,14 @@ local State = {
     ModernESP = false,
     ModernAim = false,
     PanelHidden = false,
+    ESP3D = false,
+    ESPGhost = false,
+    ESPGhostRange = 80,
+    AimDrag = false,
+    ToolsLocalVisual = false,
+    ToolsSkyLogo = false,
+    ToolsMapTag = false,
+    ToolsCharBX = false,
 }
 
 
@@ -638,9 +646,9 @@ local PageNames = {
     { Name = "OVERVIEW", Icon = "⌂" },
     { Name = "AIM", Icon = "◎" },
     { Name = "ESP", Icon = "▣" },
-    { Name = "MODERN", Icon = "◆" },
     { Name = "BRUTAL", Icon = "⚡" },
     { Name = "LOCAL", Icon = "⚙" },
+    { Name = "TOOLS", Icon = "⚒" },
     { Name = "APPEARANCE", Icon = "◈" },
     { Name = "ABOUT", Icon = "i" },
 }
@@ -1279,6 +1287,7 @@ local function pageAim()
     addToggle(Content, "FOV Circle", "Draw FOV circle", "FOVCircle", y); y = y + 58
     addToggle(Content, "Team Check", "Skip teammates", "TeamCheck", y); y = y + 58
     addToggle(Content, "Aim NPC / Bot", "Target non-players", "AimNPC", y); y = y + 58
+    addToggle(Content, "Aim Drag Easy", "Drag = camera focus nearest", "AimDrag", y); y = y + 58
     addSlider(Content, "FOV Size", "Aim field radius", "FOV", 40, 1000, y); y = y + 78
     addSlider(Content, "Smoothness", "Lower = snappier", "Smooth", 5, 40, y)
 end
@@ -1294,6 +1303,9 @@ local function pageESP()
     addToggle(Content, "Tracer", "Line to players", "ESPTracer", y); y = y + 58
     addToggle(Content, "Skeleton", "Bone lines", "ESPSkeleton", y); y = y + 58
     addToggle(Content, "NPC / Bot ESP", "Non-player models", "ESPNPC", y); y = y + 58
+    addToggle(Content, "ESP 3D Box", "World-space billboard box", "ESP3D", y); y = y + 58
+    addToggle(Content, "ESP Ghost (near only)", "Hide when far", "ESPGhost", y); y = y + 58
+    addSlider(Content, "Ghost Range", "Show within studs", "ESPGhostRange", 20, 200, y); y = y + 78
     addSlider(Content, "ESP Color Hue", "0–1 full spectrum", "ESPHue", 0, 1, y); y = y + 78
     addSlider(Content, "ESP Saturation", "Color intensity", "ESPSat", 0, 1, y); y = y + 78
     addSlider(Content, "ESP Brightness", "Value / brightness", "ESPVal", 0.2, 1, y); y = y + 78
@@ -1359,24 +1371,30 @@ local function pageLocal()
     end)
 end
 
-local function pageModern()
-    addSectionHeading(Content, "MODERN MODE", "Different ESP geometry + premium aim feel.")
+local function pageTools()
+    addSectionHeading(Content, "TOOLS / HECK", "Local visuals only — not seen by others.")
     local y = 72
-    addToggle(Content, "Modern ESP Style", "Corner brackets + dashed tracers", "ModernESP", y); y = y + 58
-    addToggle(Content, "Modern Aim", "Predictive soft lock + FOV pulse", "ModernAim", y); y = y + 58
-    addAction(Content, "Style note: corners not full box", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        notify("Modern ESP uses corner brackets + angled tracers")
+    addToggle(Content, "Local Map Visual", "Client decorations on map", "ToolsLocalVisual", y); y = y + 58
+    addToggle(Content, "Sky Logo Image", "Logo plane in sky (local)", "ToolsSkyLogo", y); y = y + 58
+    addToggle(Content, "Map Tags BAXTARA", "Name plates around map", "ToolsMapTag", y); y = y + 58
+    addToggle(Content, "Char as BAXTARA tag", "Billboard on your body", "ToolsCharBX", y); y = y + 58
+    addAction(Content, "BUILD local sky + towers now", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        if Features and Features.BuildLocalWorld then Features.BuildLocalWorld() end
+        notify("Local world built (only you see it)")
+    end); y = y + 42
+    addAction(Content, "CLEAR local tools visual", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        if Features and Features.ClearLocalWorld then Features.ClearLocalWorld() end
+        notify("Local tools cleared")
     end)
 end
-
 
 local PageRenderers = {
     OVERVIEW = pageOverview,
     AIM = pageAim,
     ESP = pageESP,
-    MODERN = pageModern,
     BRUTAL = pageBrutal,
     LOCAL = pageLocal,
+    TOOLS = pageTools,
     APPEARANCE = pageAppearance,
     ABOUT = pageAbout,
 }
@@ -1487,19 +1505,40 @@ local function navButton(parent, item, index, mobile, horizontal)
 end
 
 local function bindDrag(header)
+    if not header then return end
+    header.Active = true
+    local dragging, dragStart, startPos = false, nil, nil
     header.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Main and Main.Position or UDim2.fromScale(0.5, 0.5)
             Dragging = true
             DragInput = input.Position
-            DragStart = Main.Position
+            DragStart = startPos
         end
     end)
     header.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            Dragging = false
+        end
+    end)
+    connect(UserInputService.InputChanged, function(input)
+        if not dragging or not Main then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            local d = input.Position - dragStart
+            Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+        end
+    end)
+    connect(UserInputService.InputEnded, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
             Dragging = false
         end
     end)
 end
+
 
 local function makeLauncher()
     local style = Theme.Style
@@ -2100,69 +2139,183 @@ end
 local function runCartoonLoading(done)
     local layer = Instance.new("Frame")
     layer.Size = UDim2.fromScale(1, 1)
-    layer.BackgroundColor3 = Color3.fromRGB(20, 24, 40)
+    layer.BackgroundColor3 = Color3.fromRGB(12, 14, 28)
     layer.BorderSizePixel = 0
-    layer.ZIndex = 100
+    layer.ZIndex = 300
     layer.Parent = ScreenGui
-    local a = Instance.new("Frame")
-    a.Size = UDim2.fromOffset(70, 90)
-    a.Position = UDim2.new(0.3, -35, 0.5, -45)
-    a.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
-    a.BorderSizePixel = 0
-    a.ZIndex = 101
-    a.Parent = layer
-    Instance.new("UICorner", a).CornerRadius = UDim.new(0, 16)
-    local b = Instance.new("Frame")
-    b.Size = UDim2.fromOffset(70, 90)
-    b.Position = UDim2.new(0.7, -35, 0.5, -45)
-    b.BackgroundColor3 = Color3.fromRGB(255, 100, 120)
-    b.BorderSizePixel = 0
-    b.ZIndex = 101
-    b.Parent = layer
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 16)
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Position = UDim2.new(0, 0, 0.5, 70)
-    title.BackgroundTransparency = 1
-    title.Text = "BAXTARA  VS  CHEAT"
-    title.TextColor3 = Color3.fromRGB(240, 245, 255)
-    title.Font = Enum.Font.GothamBlack
-    title.TextSize = 16
-    title.ZIndex = 102
-    title.Parent = layer
-    -- fight bounce
+    -- stage floor
+    local floor = Instance.new("Frame")
+    floor.Size = UDim2.new(1, 0, 0, 120)
+    floor.Position = UDim2.new(0, 0, 1, -120)
+    floor.BackgroundColor3 = Color3.fromRGB(30, 36, 55)
+    floor.BorderSizePixel = 0
+    floor.ZIndex = 301
+    floor.Parent = layer
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new(Color3.fromRGB(40, 50, 80), Color3.fromRGB(15, 18, 30))
+    g.Rotation = 90
+    g.Parent = floor
+    -- title banner
+    local banner = Instance.new("TextLabel")
+    banner.Size = UDim2.new(1, 0, 0, 40)
+    banner.Position = UDim2.new(0, 0, 0.12, 0)
+    banner.BackgroundTransparency = 1
+    banner.Text = "BAXTARA X CHEAT"
+    banner.TextColor3 = Color3.fromRGB(0, 230, 200)
+    banner.Font = Enum.Font.GothamBlack
+    banner.TextSize = 26
+    banner.ZIndex = 302
+    banner.Parent = layer
+    local sub = Instance.new("TextLabel")
+    sub.Size = UDim2.new(1, 0, 0, 20)
+    sub.Position = UDim2.new(0, 0, 0.12, 36)
+    sub.BackgroundTransparency = 1
+    sub.Text = "LOADING SEQUENCE"
+    sub.TextColor3 = Color3.fromRGB(140, 160, 190)
+    sub.Font = Enum.Font.Code
+    sub.TextSize = 12
+    sub.ZIndex = 302
+    sub.Parent = layer
+    local function makeFighter(color, xScale)
+        local root = Instance.new("Frame")
+        root.BackgroundTransparency = 1
+        root.Size = UDim2.fromOffset(80, 120)
+        root.Position = UDim2.new(xScale, -40, 0.55, -60)
+        root.ZIndex = 305
+        root.Parent = layer
+        local body = Instance.new("Frame")
+        body.Size = UDim2.fromOffset(44, 56)
+        body.Position = UDim2.fromOffset(18, 36)
+        body.BackgroundColor3 = color
+        body.BorderSizePixel = 0
+        body.ZIndex = 306
+        body.Parent = root
+        Instance.new("UICorner", body).CornerRadius = UDim.new(0, 10)
+        local head = Instance.new("Frame")
+        head.Size = UDim2.fromOffset(36, 36)
+        head.Position = UDim2.fromOffset(22, 4)
+        head.BackgroundColor3 = color:Lerp(Color3.new(1,1,1), 0.25)
+        head.BorderSizePixel = 0
+        head.ZIndex = 307
+        head.Parent = root
+        Instance.new("UICorner", head).CornerRadius = UDim.new(1, 0)
+        local eye = Instance.new("Frame")
+        eye.Size = UDim2.fromOffset(8, 8)
+        eye.Position = UDim2.fromOffset(10, 14)
+        eye.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+        eye.BorderSizePixel = 0
+        eye.ZIndex = 308
+        eye.Parent = head
+        Instance.new("UICorner", eye).CornerRadius = UDim.new(1, 0)
+        local legL = Instance.new("Frame")
+        legL.Size = UDim2.fromOffset(12, 28)
+        legL.Position = UDim2.fromOffset(22, 90)
+        legL.BackgroundColor3 = color:Lerp(Color3.new(0,0,0), 0.25)
+        legL.BorderSizePixel = 0
+        legL.ZIndex = 306
+        legL.Parent = root
+        local legR = legL:Clone()
+        legR.Position = UDim2.fromOffset(46, 90)
+        legR.Parent = root
+        local arm = Instance.new("Frame")
+        arm.Size = UDim2.fromOffset(14, 34)
+        arm.Position = UDim2.fromOffset(4, 40)
+        arm.BackgroundColor3 = color
+        arm.BorderSizePixel = 0
+        arm.ZIndex = 305
+        arm.Parent = root
+        Instance.new("UICorner", arm).CornerRadius = UDim.new(0, 6)
+        return root, arm
+    end
+    local left, leftArm = makeFighter(Color3.fromRGB(70, 150, 255), 0.28)
+    local right, rightArm = makeFighter(Color3.fromRGB(255, 90, 110), 0.72)
+    local vs = Instance.new("TextLabel")
+    vs.Size = UDim2.fromOffset(60, 40)
+    vs.Position = UDim2.new(0.5, -30, 0.5, -20)
+    vs.BackgroundTransparency = 1
+    vs.Text = "VS"
+    vs.TextColor3 = Color3.fromRGB(255, 220, 80)
+    vs.Font = Enum.Font.GothamBlack
+    vs.TextSize = 28
+    vs.ZIndex = 310
+    vs.Parent = layer
     task.spawn(function()
-        for i = 1, 8 do
-            TweenService:Create(a, TweenInfo.new(0.12), {Position = UDim2.new(0.42, -35, 0.5, -45 + (i%2)*10)}):Play()
-            TweenService:Create(b, TweenInfo.new(0.12), {Position = UDim2.new(0.58, -35, 0.5, -45 - (i%2)*10)}):Play()
-            task.wait(0.13)
+        -- approach
+        TweenService:Create(left, TweenInfo.new(0.45, Enum.EasingStyle.Quad), {Position = UDim2.new(0.38, -40, 0.55, -60)}):Play()
+        TweenService:Create(right, TweenInfo.new(0.45, Enum.EasingStyle.Quad), {Position = UDim2.new(0.62, -40, 0.55, -60)}):Play()
+        task.wait(0.5)
+        -- punches
+        for i = 1, 6 do
+            local punchL = (i % 2 == 1)
+            if punchL then
+                TweenService:Create(leftArm, TweenInfo.new(0.08), {Rotation = -40, Position = UDim2.fromOffset(50, 36)}):Play()
+                TweenService:Create(right, TweenInfo.new(0.08), {Position = UDim2.new(0.64, -40, 0.55, -55)}):Play()
+            else
+                TweenService:Create(rightArm, TweenInfo.new(0.08), {Rotation = 40, Position = UDim2.fromOffset(-10, 36)}):Play()
+                TweenService:Create(left, TweenInfo.new(0.08), {Position = UDim2.new(0.36, -40, 0.55, -55)}):Play()
+            end
+            -- impact flash
+            local flash = Instance.new("Frame")
+            flash.Size = UDim2.fromOffset(24, 24)
+            flash.AnchorPoint = Vector2.new(0.5, 0.5)
+            flash.Position = UDim2.new(0.5, 0, 0.55, 0)
+            flash.BackgroundColor3 = Color3.fromRGB(255, 255, 200)
+            flash.BorderSizePixel = 0
+            flash.ZIndex = 320
+            flash.Parent = layer
+            Instance.new("UICorner", flash).CornerRadius = UDim.new(1, 0)
+            TweenService:Create(flash, TweenInfo.new(0.2), {Size = UDim2.fromOffset(60, 60), BackgroundTransparency = 1}):Play()
+            task.wait(0.16)
+            TweenService:Create(leftArm, TweenInfo.new(0.08), {Rotation = 0, Position = UDim2.fromOffset(4, 40)}):Play()
+            TweenService:Create(rightArm, TweenInfo.new(0.08), {Rotation = 0, Position = UDim2.fromOffset(4, 40)}):Play()
+            task.wait(0.1)
+            if flash.Parent then flash:Destroy() end
         end
-        -- smash
-        TweenService:Create(a, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -80, 0.5, -45), Rotation = -25}):Play()
-        TweenService:Create(b, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, 10, 0.5, -45), Rotation = 25}):Play()
-        task.wait(0.25)
-        -- shatter particles
-        for i = 1, 14 do
-            local p = Instance.new("Frame")
-            p.Size = UDim2.fromOffset(math.random(6, 14), math.random(6, 14))
-            p.Position = UDim2.new(0.5, math.random(-20, 20), 0.5, math.random(-20, 20))
-            p.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(80, 160, 255) or Color3.fromRGB(255, 100, 120)
-            p.BorderSizePixel = 0
-            p.ZIndex = 103
-            p.Parent = layer
-            Instance.new("UICorner", p).CornerRadius = UDim.new(0, 3)
-            TweenService:Create(p, TweenInfo.new(0.45), {
-                Position = UDim2.new(0.5, math.random(-220, 220), 0.5, math.random(-160, 160)),
+        -- clash center
+        TweenService:Create(left, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -90, 0.55, -60), Rotation = -18}):Play()
+        TweenService:Create(right, TweenInfo.new(0.2, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, 10, 0.55, -60), Rotation = 18}):Play()
+        TweenService:Create(vs, TweenInfo.new(0.15), {TextTransparency = 1}):Play()
+        task.wait(0.22)
+        -- shatter into shards
+        local colors = {Color3.fromRGB(70,150,255), Color3.fromRGB(255,90,110), Color3.fromRGB(0,220,180), Color3.fromRGB(255,220,80)}
+        for i = 1, 24 do
+            local shard = Instance.new("Frame")
+            shard.Size = UDim2.fromOffset(math.random(8, 18), math.random(8, 18))
+            shard.Position = UDim2.new(0.5, math.random(-30, 30), 0.55, math.random(-20, 20))
+            shard.BackgroundColor3 = colors[(i % #colors) + 1]
+            shard.BorderSizePixel = 0
+            shard.Rotation = math.random(0, 45)
+            shard.ZIndex = 330
+            shard.Parent = layer
+            Instance.new("UICorner", shard).CornerRadius = UDim.new(0, 3)
+            TweenService:Create(shard, TweenInfo.new(0.55, Enum.EasingStyle.Quad), {
+                Position = UDim2.new(0.5, math.random(-280, 280), 0.55, math.random(-200, 220)),
                 BackgroundTransparency = 1,
-                Rotation = math.random(-90, 90),
+                Rotation = math.random(-120, 120),
             }):Play()
         end
-        TweenService:Create(a, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(b, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-        TweenService:Create(title, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-        task.wait(0.5)
-        TweenService:Create(layer, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
-        task.wait(0.3)
+        TweenService:Create(left, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(right, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
+        for _, d in ipairs(left:GetDescendants()) do if d:IsA("Frame") then TweenService:Create(d, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play() end end
+        for _, d in ipairs(right:GetDescendants()) do if d:IsA("Frame") then TweenService:Create(d, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play() end end
+        task.wait(0.55)
+        -- reveal text
+        local ready = Instance.new("TextLabel")
+        ready.Size = UDim2.new(1, 0, 0, 30)
+        ready.Position = UDim2.new(0, 0, 0.48, 0)
+        ready.BackgroundTransparency = 1
+        ready.Text = "ACCESS GRANTED"
+        ready.TextColor3 = Color3.fromRGB(0, 255, 180)
+        ready.Font = Enum.Font.GothamBlack
+        ready.TextSize = 20
+        ready.TextTransparency = 1
+        ready.ZIndex = 340
+        ready.Parent = layer
+        TweenService:Create(ready, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+        task.wait(0.55)
+        TweenService:Create(layer, TweenInfo.new(0.35), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(ready, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
+        task.wait(0.4)
         layer:Destroy()
         if done then done() end
     end)
@@ -2267,9 +2420,10 @@ local function showKeyGate()
     local gate = Instance.new("Frame")
     gate.Name = "KeyGate"
     gate.Size = UDim2.fromScale(1, 1)
-    gate.BackgroundColor3 = Color3.fromRGB(6, 8, 14)
+    gate.BackgroundColor3 = Color3.fromRGB(4, 6, 12)
     gate.BorderSizePixel = 0
-    gate.ZIndex = 200
+    gate.ZIndex = 400
+    gate.Active = true
     gate.Parent = ScreenGui
     drawLogo(gate, UDim2.new(0.5, -40, 0.12, 0), 80)
     local title = Instance.new("TextLabel")
@@ -2993,6 +3147,7 @@ local function doESP()
         if not root or not head then destroyESP(p.UserId) continue end
         local d = dist(root.Position)
         if d > (State.ESPMaxDist or 1000) then destroyESP(p.UserId) continue end
+        if State.ESPGhost and d > (State.ESPGhostRange or 80) then destroyESP(p.UserId) continue end
         local pack = FeatDrawings.ESP[p.UserId]
         if not pack then
             pack = {
@@ -3072,6 +3227,22 @@ local function doESP()
             pack.Tracer.From = origin; pack.Tracer.To = rootS
             pack.Tracer.Color = Theme.Accent2; pack.Tracer.Visible = on
         else pack.Tracer.Visible = false end
+        if State.ESP3D then
+            local hl = char:FindFirstChild("BX_HL")
+            if not hl then
+                hl = Instance.new("Highlight")
+                hl.Name = "BX_HL"
+                hl.FillTransparency = 0.65
+                hl.OutlineTransparency = 0.1
+                hl.Parent = char
+            end
+            hl.FillColor = col
+            hl.OutlineColor = col
+            hl.Enabled = true
+        else
+            local hl = char:FindFirstChild("BX_HL")
+            if hl then hl.Enabled = false end
+        end
         if State.ESPHealth then
             local hum = char:FindFirstChildOfClass("Humanoid")
             if hum then
@@ -3125,6 +3296,18 @@ featConn(RunService.RenderStepped:Connect(function()
     if not State.SelfTag then Features.ClearSelfTag() end
     doAim()
     doESP()
+    if State.AimDrag then
+        local held = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+        if held then
+            local t = bestTarget()
+            if t then
+                local part = (type(t) == "table" and t.Part) or aimPart(getChar(t))
+                if part then
+                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, part.Position), 0.35)
+                end
+            end
+        end
+    end
     -- fly control
     if State.Fly and FlyBV and FlyBG then
         local cf = Camera.CFrame
@@ -3257,6 +3440,71 @@ end))
 
 -- sync feature toggles when UI toggles change via State keys that need side effects
 -- (Fly/Speed etc. applied on next frame check if needed)
+
+
+function Features.ClearLocalWorld()
+    if Features._LocalWorld then pcall(function() Features._LocalWorld:Destroy() end) Features._LocalWorld = nil end
+    if Features._CharTag then pcall(function() Features._CharTag:Destroy() end) Features._CharTag = nil end
+end
+
+function Features.BuildLocalWorld()
+    Features.ClearLocalWorld()
+    local folder = Instance.new("Folder")
+    folder.Name = "BX_LOCAL_WORLD"
+    folder.Parent = Workspace
+    Features._LocalWorld = folder
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local base = root and root.Position or Vector3.new(0, 5, 0)
+    if State.ToolsSkyLogo or State.ToolsLocalVisual then
+        for i = 1, 4 do
+            local ang = (i / 4) * math.pi * 2
+            local p = Instance.new("Part")
+            p.Anchored = true; p.CanCollide = false
+            p.Size = Vector3.new(40, 40, 1)
+            p.Color = Color3.fromRGB(0, 40, 50)
+            p.Material = Enum.Material.Neon
+            p.CFrame = CFrame.new(base + Vector3.new(math.cos(ang) * 120, 90, math.sin(ang) * 120)) * CFrame.Angles(0, ang + math.pi/2, 0)
+            p.Parent = folder
+            local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front; sg.Parent = p
+            local f = Instance.new("Frame"); f.Size = UDim2.fromScale(1,1); f.BackgroundColor3 = Color3.fromRGB(6,12,18); f.Parent = sg
+            local ring = Instance.new("Frame"); ring.AnchorPoint = Vector2.new(0.5,0.5); ring.Position = UDim2.fromScale(0.5,0.4); ring.Size = UDim2.fromScale(0.5,0.5); ring.BackgroundTransparency = 1; ring.Parent = f
+            Instance.new("UICorner", ring).CornerRadius = UDim.new(1,0)
+            local rs = Instance.new("UIStroke"); rs.Color = Color3.fromRGB(0,220,200); rs.Thickness = 4; rs.Parent = ring
+            local core = Instance.new("Frame"); core.AnchorPoint = Vector2.new(0.5,0.5); core.Position = UDim2.fromScale(0.5,0.4); core.Size = UDim2.fromScale(0.3,0.3); core.BackgroundColor3 = Color3.fromRGB(0,200,170); core.Parent = f
+            Instance.new("UICorner", core).CornerRadius = UDim.new(0,8)
+            local bx = Instance.new("TextLabel"); bx.Size = UDim2.fromScale(1,1); bx.BackgroundTransparency = 1; bx.Text = "BX"; bx.TextColor3 = Color3.fromRGB(5,10,15); bx.Font = Enum.Font.GothamBlack; bx.TextScaled = true; bx.Parent = core
+            local mask = Instance.new("Frame"); mask.AnchorPoint = Vector2.new(0.5,0.5); mask.Position = UDim2.fromScale(0.5,0.78); mask.Size = UDim2.fromScale(0.4,0.2); mask.BackgroundColor3 = Color3.fromRGB(20,25,35); mask.Parent = f
+            Instance.new("UICorner", mask).CornerRadius = UDim.new(1,0)
+            local e1 = Instance.new("Frame"); e1.Size = UDim2.fromScale(0.22,0.35); e1.Position = UDim2.fromScale(0.2,0.32); e1.BackgroundColor3 = Color3.new(0,0,0); e1.Parent = mask
+            local e2 = e1:Clone(); e2.Position = UDim2.fromScale(0.58,0.32); e2.Parent = mask
+        end
+    end
+    if State.ToolsMapTag or State.ToolsLocalVisual then
+        for i = 1, 6 do
+            local ang = (i/6)*math.pi*2
+            local tower = Instance.new("Part"); tower.Anchored = true; tower.CanCollide = false
+            tower.Size = Vector3.new(6,28,6); tower.Color = Color3.fromRGB(20,60,80); tower.Material = Enum.Material.SmoothPlastic
+            tower.CFrame = CFrame.new(base + Vector3.new(math.cos(ang)*55, 14, math.sin(ang)*55)); tower.Parent = folder
+            local top = Instance.new("Part"); top.Anchored = true; top.CanCollide = false
+            top.Size = Vector3.new(10,2,10); top.Color = Color3.fromRGB(0,200,160); top.Material = Enum.Material.Neon
+            top.CFrame = tower.CFrame * CFrame.new(0,15,0); top.Parent = folder
+            local sg = Instance.new("BillboardGui"); sg.Size = UDim2.fromOffset(160,40); sg.StudsOffset = Vector3.new(0,4,0); sg.AlwaysOnTop = true; sg.Parent = top
+            local tl = Instance.new("TextLabel"); tl.Size = UDim2.fromScale(1,1); tl.BackgroundTransparency = 1
+            tl.Text = "BAXTARA X CHEAT"; tl.TextColor3 = Color3.fromRGB(0,255,200); tl.Font = Enum.Font.GothamBlack; tl.TextScaled = true; tl.Parent = sg
+        end
+    end
+    if State.ToolsCharBX then
+        local head = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head")
+        if head then
+            local bb = Instance.new("BillboardGui"); bb.Size = UDim2.fromOffset(140,50); bb.StudsOffset = Vector3.new(0,3,0); bb.AlwaysOnTop = true; bb.Parent = head
+            Features._CharTag = bb
+            local f = Instance.new("Frame"); f.Size = UDim2.fromScale(1,1); f.BackgroundColor3 = Color3.fromRGB(8,16,22); f.Parent = bb
+            Instance.new("UICorner", f).CornerRadius = UDim.new(0,8)
+            local t = Instance.new("TextLabel"); t.Size = UDim2.fromScale(1,1); t.BackgroundTransparency = 1
+            t.Text = "BAXTARA X CHEAT"; t.TextColor3 = Color3.fromRGB(0,255,200); t.Font = Enum.Font.GothamBlack; t.TextScaled = true; t.Parent = f
+        end
+    end
+end
 
 print("[BAXTARA X CHEAT] v7.1 Four Worlds UI + Aim/ESP/Brutal/Local | BX or RightControl")
 
