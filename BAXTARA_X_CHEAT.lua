@@ -28,7 +28,7 @@ if not LocalPlayer then
 end
 
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local GUI_NAME = "BAXTARA_X_FOUR_WORLDS_V7"
+local GUI_NAME = "BAXTARA_X_CHEAT"
 local old = PlayerGui:FindFirstChild(GUI_NAME)
 if old then old:Destroy() end
 
@@ -121,9 +121,61 @@ local State = {
     CompactCards = false,
     Glow = 0.72,
     AnimationSpeed = 1.0,
+    -- FEATURES
+    AimEnabled = false,
+    SilentAim = false,
+    AntiMiss = false,
+    AimLock = false,
+    VisCheck = true,
+    HeadAim = true,
+    BodyAim = false,
+    FOVCircle = true,
+    TeamCheck = true,
+    AimNPC = false,
+    FOV = 180,
+    Smooth = 15,
+    AimDist = 800,
+    ESPEnabled = false,
+    ESPBox = true,
+    ESPName = true,
+    ESPHealth = true,
+    ESPDist = true,
+    ESPTracer = true,
+    ESPSkeleton = false,
+    ESPNPC = false,
+    TracerOrigin = "Bottom",
+    ESPMaxDist = 1000,
+    Fly = false,
+    FlySpeed = 45,
+    SpeedHack = false,
+    SpeedValue = 28,
+    InfJump = false,
+    Noclip = false,
+    GodMode = false,
+    GhostMode = false,
+    Hitbox = false,
+    HitboxSize = 8,
+    HitboxPart = "Body",
+    SpinBot = false,
+    SpinSpeed = 40,
+    FlyKillAll = false,
+    AntiCD = false,
+    InfAmmo = false,
+    AttackSpeed = false,
+    AttackSpeedVal = 8,
+    SkyHack = false,
+    SelfTag = false,
+    SelfTagText = "BAXTARA",
+    SelfTagRainbow = false,
+    ChatBubble = false,
+    FreezeOthers = false,
+    AntiLag = false,
 }
 
+
 local Theme = Themes[State.Theme]
+local Features = {} -- filled later by feature engine
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = GUI_NAME
 ScreenGui.ResetOnSpawn = false
@@ -576,10 +628,11 @@ end
 
 local PageNames = {
     { Name = "OVERVIEW", Icon = "⌂" },
-    { Name = "PROFILE", Icon = "◉" },
+    { Name = "AIM", Icon = "◎" },
+    { Name = "ESP", Icon = "▣" },
+    { Name = "BRUTAL", Icon = "⚡" },
+    { Name = "LOCAL", Icon = "⚙" },
     { Name = "APPEARANCE", Icon = "◈" },
-    { Name = "VISUAL LAB", Icon = "✦" },
-    { Name = "PREFERENCES", Icon = "⚙" },
     { Name = "ABOUT", Icon = "i" },
 }
 
@@ -1201,12 +1254,94 @@ local function pageAbout()
         9, Theme.Accent2, Enum.Font.GothamBold, UDim2.fromOffset(15, 60), UDim2.new(1, -30, 0, 43))
 end
 
+
+
+-- ========== FEATURE PAGES ==========
+local function pageAim()
+    addSectionHeading(Content, "AIMBOT", "Lock, FOV, silent and NPC targeting.")
+    local y = 72
+    addToggle(Content, "Enable Aimbot", "Master aimbot switch", "AimEnabled", y); y = y + 58
+    addToggle(Content, "Silent Aim", "Hard camera snap", "SilentAim", y); y = y + 58
+    addToggle(Content, "Anti Miss", "Stronger tracking", "AntiMiss", y); y = y + 58
+    addToggle(Content, "Aim Lock", "Keep current target", "AimLock", y); y = y + 58
+    addToggle(Content, "Visibility Check", "Only visible targets", "VisCheck", y); y = y + 58
+    addToggle(Content, "Head Aim", "Aim at head", "HeadAim", y); y = y + 58
+    addToggle(Content, "Body Aim", "Aim at body", "BodyAim", y); y = y + 58
+    addToggle(Content, "FOV Circle", "Draw FOV circle", "FOVCircle", y); y = y + 58
+    addToggle(Content, "Team Check", "Skip teammates", "TeamCheck", y); y = y + 58
+    addToggle(Content, "Aim NPC / Bot", "Target non-players", "AimNPC", y); y = y + 58
+    addSlider(Content, "FOV Size", "Aim field radius", "FOV", 40, 1000, y); y = y + 78
+    addSlider(Content, "Smoothness", "Lower = snappier", "Smooth", 5, 40, y)
+end
+
+local function pageESP()
+    addSectionHeading(Content, "ESP", "Boxes, tracers, skeleton, NPC.")
+    local y = 72
+    addToggle(Content, "Enable ESP", "Master ESP switch", "ESPEnabled", y); y = y + 58
+    addToggle(Content, "Box", "Player boxes", "ESPBox", y); y = y + 58
+    addToggle(Content, "Name", "Display names", "ESPName", y); y = y + 58
+    addToggle(Content, "Health Bar", "HP bar", "ESPHealth", y); y = y + 58
+    addToggle(Content, "Distance", "Range text", "ESPDist", y); y = y + 58
+    addToggle(Content, "Tracer", "Line to players", "ESPTracer", y); y = y + 58
+    addToggle(Content, "Skeleton", "Bone lines", "ESPSkeleton", y); y = y + 58
+    addToggle(Content, "NPC / Bot ESP", "Non-player models", "ESPNPC", y); y = y + 58
+    addAction(Content, "Tracer origin: BOTTOM", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        State.TracerOrigin = "Bottom"; notify("Tracer → Bottom")
+    end); y = y + 42
+    addAction(Content, "Tracer origin: CENTER", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        State.TracerOrigin = "Center"; notify("Tracer → Center")
+    end); y = y + 42
+    addAction(Content, "Tracer origin: TOP", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        State.TracerOrigin = "Top"; notify("Tracer → Top")
+    end)
+end
+
+local function pageBrutal()
+    addSectionHeading(Content, "BRUTAL", "Movement, hitbox, combat helpers.")
+    local y = 72
+    addToggle(Content, "Fly", "BodyVelocity flight", "Fly", y); y = y + 58
+    addSlider(Content, "Fly Speed", "Flight velocity", "FlySpeed", 10, 100, y); y = y + 78
+    addToggle(Content, "Speed Hack", "WalkSpeed boost", "SpeedHack", y); y = y + 58
+    addSlider(Content, "Walk Speed", "16–100", "SpeedValue", 16, 100, y); y = y + 78
+    addToggle(Content, "Infinite Jump", "Jump spam", "InfJump", y); y = y + 58
+    addToggle(Content, "Noclip", "No collision", "Noclip", y); y = y + 58
+    addToggle(Content, "God Mode", "Local HP refill", "GodMode", y); y = y + 58
+    addToggle(Content, "Ghost Mode", "Local invisible", "GhostMode", y); y = y + 58
+    addToggle(Content, "Hitbox Expand", "Enlarge head/body", "Hitbox", y); y = y + 58
+    addSlider(Content, "Hitbox Size", "2–27 studs", "HitboxSize", 2, 27, y); y = y + 78
+    addToggle(Content, "Spin Bot", "Rotate character", "SpinBot", y); y = y + 58
+    addSlider(Content, "Spin Speed", "1–120", "SpinSpeed", 1, 120, y); y = y + 78
+    addToggle(Content, "Fly Kill All", "Hover + pull + fire", "FlyKillAll", y); y = y + 58
+    addToggle(Content, "Anti Cooldown", "Weapon patch", "AntiCD", y); y = y + 58
+    addToggle(Content, "Infinite Ammo", "Ammo patch", "InfAmmo", y)
+end
+
+local function pageLocal()
+    addSectionHeading(Content, "LOCAL CONFIG", "Sky, tags, teleport, utility.")
+    local y = 72
+    addToggle(Content, "Hacker Sky", "Bright sky + BAXTARA logos", "SkyHack", y); y = y + 58
+    addToggle(Content, "Self Name Tag", "Tag above your head", "SelfTag", y); y = y + 58
+    addToggle(Content, "Tag Rainbow", "Rainbow tag color", "SelfTagRainbow", y); y = y + 58
+    addToggle(Content, "Chat Bubble", "Local bubble text", "ChatBubble", y); y = y + 58
+    addToggle(Content, "Freeze Others", "Anchor other HRPs", "FreezeOthers", y); y = y + 58
+    addToggle(Content, "Anti Lag Self", "Low graphics", "AntiLag", y); y = y + 58
+    addAction(Content, "TP nearest player", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        if Features and Features.TPNearest then Features.TPNearest() end
+        notify("TP nearest")
+    end); y = y + 42
+    addAction(Content, "TP all players in front", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        if Features and Features.TPAllFront then Features.TPAllFront() end
+        notify("TP all front")
+    end)
+end
+
 local PageRenderers = {
     OVERVIEW = pageOverview,
-    PROFILE = pageProfile,
+    AIM = pageAim,
+    ESP = pageESP,
+    BRUTAL = pageBrutal,
+    LOCAL = pageLocal,
     APPEARANCE = pageAppearance,
-    ["VISUAL LAB"] = pageVisualLab,
-    PREFERENCES = pagePreferences,
     ABOUT = pageAbout,
 }
 
@@ -1959,4 +2094,543 @@ ScreenGui.Destroying:Connect(function()
     table.clear(KetupatNodes)
 end)
 
-print("[BAXTARA] Four Worlds UI v7.1 loaded. Local interface only. Use BX launcher or RightControl.")
+
+-- ========== FEATURE ENGINE ==========
+Features = Features or {}
+local Camera = Workspace.CurrentCamera
+local DrawingLib = Drawing
+local FeatDrawings = { FOV = nil, ESP = {}, NPC = {} }
+local FeatConns = {}
+local FlyBV, FlyBG, NoclipConn, JumpConn
+local OrigWalk, SpinAng, HitboxOrig = 16, 0, {}
+local LockedTarget, LastShoot = nil, 0
+local SkyFolder, SelfTagGui, ChatBubbleGui
+
+local function featConn(c) table.insert(FeatConns, c); return c end
+local function getChar(p) return p and p.Character end
+local function getRoot(c) return c and (c:FindFirstChild("HumanoidRootPart") or c:FindFirstChild("UpperTorso") or c:FindFirstChild("Torso")) end
+local function getHead(c) return c and c:FindFirstChild("Head") end
+local function alive(c)
+    local h = c and c:FindFirstChildOfClass("Humanoid")
+    return h and h.Health > 0
+end
+local function teamOK(p)
+    if not State.TeamCheck then return true end
+    if not LocalPlayer.Team then return true end
+    return p.Team ~= LocalPlayer.Team
+end
+local function w2s(pos)
+    local v, on = Camera:WorldToViewportPoint(pos)
+    return Vector2.new(v.X, v.Y), on
+end
+local function dist(pos)
+    local r = getRoot(LocalPlayer.Character)
+    return r and (r.Position - pos).Magnitude or 99999
+end
+local function visible(from, to, char)
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {LocalPlayer.Character, char}
+    return Workspace:Raycast(from, to - from, params) == nil
+end
+
+function Features.SetFly(on)
+    local char = LocalPlayer.Character
+    local root = getRoot(char)
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if FlyBV then pcall(function() FlyBV:Destroy() end) FlyBV = nil end
+    if FlyBG then pcall(function() FlyBG:Destroy() end) FlyBG = nil end
+    if on and root and hum then
+        hum.PlatformStand = true
+        FlyBV = Instance.new("BodyVelocity")
+        FlyBV.MaxForce = Vector3.new(9e4,9e4,9e4)
+        FlyBV.Velocity = Vector3.zero
+        FlyBV.Parent = root
+        FlyBG = Instance.new("BodyGyro")
+        FlyBG.MaxTorque = Vector3.new(9e4,9e4,9e4)
+        FlyBG.P = 3000
+        FlyBG.Parent = root
+    elseif hum then
+        hum.PlatformStand = false
+    end
+end
+
+function Features.SetSpeed(on)
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    if on then
+        OrigWalk = hum.WalkSpeed
+        hum.WalkSpeed = math.clamp(State.SpeedValue or 28, 16, 100)
+    else
+        hum.WalkSpeed = OrigWalk or 16
+    end
+end
+
+function Features.SetNoclip(on)
+    if NoclipConn then NoclipConn:Disconnect(); NoclipConn = nil end
+    if on then
+        NoclipConn = RunService.Stepped:Connect(function()
+            local char = LocalPlayer.Character
+            if not char then return end
+            for _, p in ipairs(char:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false end
+            end
+        end)
+        featConn(NoclipConn)
+    end
+end
+
+function Features.SetInfJump(on)
+    if JumpConn then JumpConn:Disconnect(); JumpConn = nil end
+    if on then
+        JumpConn = UserInputService.JumpRequest:Connect(function()
+            local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+        end)
+        featConn(JumpConn)
+    end
+end
+
+function Features.SetGhost(on)
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, p in ipairs(char:GetDescendants()) do
+        if p:IsA("BasePart") then p.LocalTransparencyModifier = on and 1 or 0
+        elseif p:IsA("Decal") then p.Transparency = on and 1 or 0 end
+    end
+end
+
+function Features.ClearHitbox()
+    for uid, data in pairs(HitboxOrig) do
+        local plr = Players:GetPlayerByUserId(uid)
+        local char = plr and plr.Character
+        if char and data then
+            if data.Head then local h = char:FindFirstChild("Head"); if h then pcall(function() h.Size = data.Head; h.Transparency = data.HeadT or 0 end) end end
+            if data.HRP then local r = char:FindFirstChild("HumanoidRootPart"); if r then pcall(function() r.Size = data.HRP; r.Transparency = data.HRPT or 1 end) end end
+        end
+    end
+    HitboxOrig = {}
+end
+
+function Features.SetSky(on)
+    if SkyFolder then pcall(function() SkyFolder:Destroy() end) SkyFolder = nil end
+    if not on then return end
+    SkyFolder = Instance.new("Folder")
+    SkyFolder.Name = "BX_SKY"
+    SkyFolder.Parent = Workspace
+    local root = getRoot(LocalPlayer.Character)
+    local base = root and root.Position or Vector3.new(0,0,0)
+    for ring = 1, 3 do
+        local n, rad, h = 6 + ring * 2, 80 + ring * 70, 60 + ring * 40
+        for i = 1, n do
+            local ang = (i / n) * math.pi * 2
+            local part = Instance.new("Part")
+            part.Anchored = true; part.CanCollide = false; part.Transparency = 1; part.Size = Vector3.new(1,1,1)
+            part.CFrame = CFrame.new(base.X + math.cos(ang) * rad, h, base.Z + math.sin(ang) * rad)
+            part.Parent = SkyFolder
+            local bb = Instance.new("BillboardGui")
+            bb.Size = UDim2.fromOffset(260, 34); bb.MaxDistance = 4000; bb.Parent = part
+            local tl = Instance.new("TextLabel")
+            tl.Size = UDim2.fromScale(1,1); tl.BackgroundTransparency = 1
+            tl.Text = "BAXTARA X CHEAT"; tl.TextColor3 = Color3.fromRGB(0,255,130)
+            tl.TextTransparency = 0.3; tl.Font = Enum.Font.GothamBlack; tl.TextScaled = true
+            tl.Parent = bb
+        end
+    end
+    pcall(function()
+        local Lighting = game:GetService("Lighting")
+        Lighting.Brightness = 3
+        Lighting.FogColor = Color3.fromRGB(10, 40, 25)
+        Lighting.FogEnd = 900
+        Lighting.ClockTime = 14
+    end)
+end
+
+function Features.ClearSelfTag()
+    if SelfTagGui then pcall(function() SelfTagGui:Destroy() end) SelfTagGui = nil end
+end
+
+function Features.TPNearest()
+    local my = getRoot(LocalPlayer.Character)
+    if not my then return end
+    local best, bd = nil, 9999
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local r = getRoot(getChar(p))
+            if r then
+                local d = (my.Position - r.Position).Magnitude
+                if d < bd then bd = d; best = r end
+            end
+        end
+    end
+    if best then my.CFrame = best.CFrame * CFrame.new(0, 0, 3) end
+end
+
+function Features.TPAllFront()
+    local my = getRoot(LocalPlayer.Character)
+    if not my then return end
+    local front = my.CFrame * CFrame.new(0, 0, -10)
+    local i = 0
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local r = getRoot(getChar(p))
+            if r then
+                i = i + 1
+                pcall(function() r.CFrame = front * CFrame.new((i % 4) * 3 - 4, 0, math.floor(i / 4) * 3) end)
+            end
+        end
+    end
+end
+
+local function aimPart(char)
+    if State.BodyAim then return getRoot(char) or getHead(char) end
+    return getHead(char) or getRoot(char)
+end
+
+local function bestTarget()
+    local best, score = nil, math.huge
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local camPos = Camera.CFrame.Position
+    local fov = State.FOV or 180
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and teamOK(p) then
+            local char = getChar(p)
+            if alive(char) then
+                local part = aimPart(char)
+                if part and dist(part.Position) <= (State.AimDist or 800) then
+                    local screen, on = w2s(part.Position)
+                    if on then
+                        local cross = (screen - center).Magnitude
+                        if cross <= fov then
+                            if not (State.VisCheck and not visible(camPos, part.Position, char)) then
+                                if cross < score then score = cross; best = p end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if State.AimNPC then
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
+                local hum = obj:FindFirstChildOfClass("Humanoid")
+                local head = obj:FindFirstChild("Head") or obj:FindFirstChild("HumanoidRootPart")
+                if hum and head and hum.Health > 0 then
+                    local screen, on = w2s(head.Position)
+                    if on then
+                        local cross = (screen - center).Magnitude
+                        if cross <= fov and cross < score and dist(head.Position) <= (State.AimDist or 800) then
+                            score = cross
+                            best = { NPC = true, Part = head }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function doAim()
+    if not State.AimEnabled and not State.FlyKillAll then
+        if FeatDrawings.FOV then FeatDrawings.FOV.Visible = false end
+        return
+    end
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    if State.FOVCircle and State.AimEnabled and DrawingLib then
+        if not FeatDrawings.FOV then
+            local f = Drawing.new("Circle")
+            f.Thickness = 2.5; f.NumSides = 64; f.Filled = false
+            f.Color = Theme.Accent; f.Transparency = 0.35
+            FeatDrawings.FOV = f
+        end
+        FeatDrawings.FOV.Position = center
+        FeatDrawings.FOV.Radius = State.FOV or 180
+        FeatDrawings.FOV.Color = Theme.Accent
+        FeatDrawings.FOV.Visible = true
+    elseif FeatDrawings.FOV then
+        FeatDrawings.FOV.Visible = false
+    end
+    if not State.AimEnabled then return end
+    local target = (State.AimLock and LockedTarget) or bestTarget()
+    if State.AimLock and not LockedTarget and target then LockedTarget = target end
+    if not State.AimLock then LockedTarget = nil end
+    if not target then return end
+    local part
+    if type(target) == "table" and target.NPC then part = target.Part
+    else
+        local char = getChar(target)
+        if not alive(char) then return end
+        part = aimPart(char)
+        if State.VisCheck and not visible(Camera.CFrame.Position, part.Position, char) then return end
+    end
+    if not part then return end
+    local smooth = (State.Smooth or 15) / 100
+    if State.SilentAim then smooth = 0.85 end
+    if State.AntiMiss then smooth = math.clamp(smooth + 0.2, 0.1, 0.9) end
+    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, part.Position), smooth)
+end
+
+local function destroyESP(id)
+    local pack = FeatDrawings.ESP[id]
+    if not pack then return end
+    for k, d in pairs(pack) do
+        if k == "Skel" then for _, l in ipairs(d) do pcall(function() if l.Remove then l:Remove() end end) end
+        else pcall(function() if d and d.Remove then d:Remove() end end) end
+    end
+    FeatDrawings.ESP[id] = nil
+end
+
+local function doESP()
+    if not DrawingLib then return end
+    local aliveIds = {}
+    if not State.ESPEnabled then
+        for id in pairs(FeatDrawings.ESP) do destroyESP(id) end
+        return
+    end
+    local bottom = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+    local org = State.TracerOrigin or "Bottom"
+    local origin = bottom
+    local vp = Camera.ViewportSize
+    if org == "Center" then origin = Vector2.new(vp.X/2, vp.Y/2)
+    elseif org == "Top" then origin = Vector2.new(vp.X/2, 8)
+    elseif org == "Left" then origin = Vector2.new(8, vp.Y/2)
+    elseif org == "Right" then origin = Vector2.new(vp.X-8, vp.Y/2)
+    end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p == LocalPlayer then continue end
+        aliveIds[p.UserId] = true
+        local char = getChar(p)
+        if not alive(char) then destroyESP(p.UserId) continue end
+        local root, head = getRoot(char), getHead(char)
+        if not root or not head then destroyESP(p.UserId) continue end
+        local d = dist(root.Position)
+        if d > (State.ESPMaxDist or 1000) then destroyESP(p.UserId) continue end
+        local pack = FeatDrawings.ESP[p.UserId]
+        if not pack then
+            pack = {
+                Box = Drawing.new("Square"), Name = Drawing.new("Text"),
+                Health = Drawing.new("Line"), Dist = Drawing.new("Text"),
+                Tracer = Drawing.new("Line"), Skel = {},
+            }
+            pack.Box.Thickness = 1.4; pack.Box.Filled = false
+            pack.Name.Size = 12; pack.Name.Center = true; pack.Name.Outline = true
+            pack.Health.Thickness = 2
+            pack.Dist.Size = 11; pack.Dist.Center = true; pack.Dist.Outline = true
+            pack.Tracer.Thickness = 1.2
+            for i = 1, 12 do local l = Drawing.new("Line"); l.Thickness = 1.1; pack.Skel[i] = l end
+            FeatDrawings.ESP[p.UserId] = pack
+        end
+        local topS, on = w2s(head.Position + Vector3.new(0, 0.4, 0))
+        local botS = select(1, w2s(root.Position - Vector3.new(0, 3, 0)))
+        local rootS = select(1, w2s(root.Position))
+        local col = Theme.Accent
+        if State.ESPBox then
+            local h = math.max(math.abs(topS.Y - botS.Y), 14)
+            pack.Box.Size = Vector2.new(h * 0.68, h)
+            pack.Box.Position = Vector2.new(topS.X - h * 0.34, topS.Y)
+            pack.Box.Color = col; pack.Box.Visible = on
+        else pack.Box.Visible = false end
+        if State.ESPName then
+            pack.Name.Text = p.DisplayName or p.Name
+            pack.Name.Position = Vector2.new(topS.X, topS.Y - 14)
+            pack.Name.Color = col; pack.Name.Visible = on
+        else pack.Name.Visible = false end
+        if State.ESPDist then
+            pack.Dist.Text = string.format("[%dm]", math.floor(d))
+            pack.Dist.Position = Vector2.new(botS.X, botS.Y + 2)
+            pack.Dist.Color = Theme.Muted; pack.Dist.Visible = on
+        else pack.Dist.Visible = false end
+        if State.ESPTracer then
+            pack.Tracer.From = origin; pack.Tracer.To = rootS
+            pack.Tracer.Color = Theme.Accent2; pack.Tracer.Visible = on
+        else pack.Tracer.Visible = false end
+        if State.ESPHealth then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                local pct = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+                local h = math.max(math.abs(topS.Y - botS.Y), 14)
+                local x = topS.X - h * 0.34 - 5
+                pack.Health.From = Vector2.new(x, topS.Y + h)
+                pack.Health.To = Vector2.new(x, topS.Y + h * (1 - pct))
+                pack.Health.Color = Color3.fromRGB(255 * (1 - pct), 255 * pct, 40)
+                pack.Health.Visible = on
+            end
+        else pack.Health.Visible = false end
+        -- skeleton simple
+        if State.ESPSkeleton then
+            local pairs_ = {{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","LeftUpperArm"},{"UpperTorso","RightUpperArm"},{"LowerTorso","LeftUpperLeg"},{"LowerTorso","RightUpperLeg"},{"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},{"Torso","Left Leg"},{"Torso","Right Leg"}}
+            local idx = 1
+            for _, pr in ipairs(pairs_) do
+                if idx > #pack.Skel then break end
+                local a, b = char:FindFirstChild(pr[1]), char:FindFirstChild(pr[2])
+                if a and b and a:IsA("BasePart") and b:IsA("BasePart") then
+                    local sa, oa = w2s(a.Position); local sb, ob = w2s(b.Position)
+                    if oa and ob then
+                        pack.Skel[idx].From = sa; pack.Skel[idx].To = sb
+                        pack.Skel[idx].Color = col; pack.Skel[idx].Visible = true
+                        idx = idx + 1
+                    end
+                end
+            end
+            for i = idx, #pack.Skel do pack.Skel[i].Visible = false end
+        else
+            for _, l in ipairs(pack.Skel) do l.Visible = false end
+        end
+    end
+    for id in pairs(FeatDrawings.ESP) do
+        if not aliveIds[id] then destroyESP(id) end
+    end
+end
+
+local LastFly, LastSpeed, LastNoclip, LastJump, LastGhost, LastSky = false, false, false, false, false, false
+featConn(RunService.RenderStepped:Connect(function()
+    if State.Destroyed then return end
+    Camera = Workspace.CurrentCamera
+    -- side-effect sync from UI toggles
+    if State.Fly ~= LastFly then LastFly = State.Fly; Features.SetFly(State.Fly) end
+    if State.SpeedHack ~= LastSpeed then LastSpeed = State.SpeedHack; Features.SetSpeed(State.SpeedHack) end
+    if State.Noclip ~= LastNoclip then LastNoclip = State.Noclip; Features.SetNoclip(State.Noclip) end
+    if State.InfJump ~= LastJump then LastJump = State.InfJump; Features.SetInfJump(State.InfJump) end
+    if State.GhostMode ~= LastGhost then LastGhost = State.GhostMode; Features.SetGhost(State.GhostMode) end
+    if State.SkyHack ~= LastSky then LastSky = State.SkyHack; Features.SetSky(State.SkyHack) end
+    if not State.Hitbox then Features.ClearHitbox() end
+    if not State.SelfTag then Features.ClearSelfTag() end
+    doAim()
+    doESP()
+    -- fly control
+    if State.Fly and FlyBV and FlyBG then
+        local cf = Camera.CFrame
+        local move = Vector3.zero
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + cf.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - cf.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - cf.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + cf.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.yAxis end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.yAxis end
+        FlyBV.Velocity = move.Magnitude > 0.1 and move.Unit * (State.FlySpeed or 45) or Vector3.zero
+        FlyBG.CFrame = cf
+    end
+    -- speed reapply
+    if State.SpeedHack then
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.WalkSpeed < (State.SpeedValue or 28) - 1 then
+            hum.WalkSpeed = math.clamp(State.SpeedValue, 16, 100)
+        end
+    end
+    -- god
+    if State.GodMode then
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health < hum.MaxHealth then hum.Health = hum.MaxHealth end
+    end
+    -- spin
+    if State.SpinBot then
+        local root = getRoot(LocalPlayer.Character)
+        if root then
+            SpinAng = (SpinAng + (State.SpinSpeed or 40) * 0.05) % 360
+            root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(SpinAng), 0)
+        end
+    end
+    -- hitbox
+    if State.Hitbox then
+        local size = math.clamp(State.HitboxSize or 8, 2, 27)
+        local useHead = State.HitboxPart == "Head"
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p == LocalPlayer then continue end
+            local char = getChar(p)
+            if not alive(char) then continue end
+            local head, root = getHead(char), getRoot(char)
+            if not HitboxOrig[p.UserId] then
+                HitboxOrig[p.UserId] = {}
+                if head then HitboxOrig[p.UserId].Head = head.Size; HitboxOrig[p.UserId].HeadT = head.Transparency end
+                if root then HitboxOrig[p.UserId].HRP = root.Size; HitboxOrig[p.UserId].HRPT = root.Transparency end
+            end
+            if useHead and head then
+                pcall(function() head.Size = Vector3.new(size,size,size); head.Transparency = 0.4; head.CanCollide = false end)
+            elseif root then
+                pcall(function() root.Size = Vector3.new(size,size,size); root.Transparency = 0.5; root.CanCollide = false end)
+            end
+        end
+    end
+    -- freeze
+    if State.FreezeOthers then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                local r = getRoot(getChar(p))
+                if r then pcall(function() r.Anchored = true end) end
+            end
+        end
+    end
+    -- self tag
+    if State.SelfTag then
+        local head = getHead(LocalPlayer.Character)
+        if head then
+            if not SelfTagGui or not SelfTagGui.Parent then
+                local bb = Instance.new("BillboardGui")
+                bb.Size = UDim2.fromOffset(180, 36); bb.StudsOffset = Vector3.new(0, 2.4, 0)
+                bb.AlwaysOnTop = true; bb.Parent = head
+                local tl = Instance.new("TextLabel")
+                tl.Name = "T"; tl.Size = UDim2.fromScale(1,1); tl.BackgroundTransparency = 1
+                tl.Font = Enum.Font.GothamBlack; tl.TextScaled = true; tl.TextStrokeTransparency = 0.4
+                tl.Parent = bb
+                SelfTagGui = bb
+            end
+            local tl = SelfTagGui:FindFirstChild("T")
+            if tl then
+                tl.Text = State.SelfTagText or "BAXTARA"
+                if State.SelfTagRainbow then
+                    tl.TextColor3 = Color3.fromHSV((tick() * 0.35) % 1, 1, 1)
+                else
+                    tl.TextColor3 = Color3.fromRGB(255, 215, 0)
+                end
+            end
+        end
+    end
+    -- fly kill all
+    if State.FlyKillAll then
+        local root = getRoot(LocalPlayer.Character)
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if root and hum then
+            hum.PlatformStand = true
+            if not FlyBV then Features.SetFly(true) end
+            if root.Position.Y < 70 and FlyBV then FlyBV.Velocity = Vector3.new(0, 40, 0)
+            elseif FlyBV then FlyBV.Velocity = Vector3.zero end
+            local front = root.CFrame * CFrame.new(0, 0, -12)
+            local i = 0
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and teamOK(p) then
+                    local er = getRoot(getChar(p))
+                    if er and alive(getChar(p)) then
+                        i = i + 1
+                        pcall(function() er.CFrame = front * CFrame.new((i % 4) * 3 - 4.5, 0, 0) end)
+                    end
+                end
+            end
+            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if tool then pcall(function() tool:Activate() end) end
+        end
+    end
+    -- weapon patch
+    if State.AntiCD or State.InfAmmo then
+        local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if tool then
+            for _, v in ipairs(tool:GetDescendants()) do
+                if v:IsA("NumberValue") or v:IsA("IntValue") then
+                    local n = v.Name:lower()
+                    if State.AntiCD and (n:find("cool") or n:find("delay") or n:find("rate")) then pcall(function() v.Value = 0 end) end
+                    if State.InfAmmo and (n:find("ammo") or n:find("clip") or n:find("mag")) then pcall(function() v.Value = 999 end) end
+                end
+            end
+        end
+    end
+    if State.AntiLag then
+        pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+    end
+end))
+
+-- sync feature toggles when UI toggles change via State keys that need side effects
+-- (Fly/Speed etc. applied on next frame check if needed)
+
+print("[BAXTARA X CHEAT] v7.1 Four Worlds UI + Aim/ESP/Brutal/Local | BX or RightControl")
+
