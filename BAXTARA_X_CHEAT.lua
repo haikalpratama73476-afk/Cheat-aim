@@ -200,6 +200,11 @@ ScreenGui.IgnoreGuiInset = true
 ScreenGui.DisplayOrder = 90
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = PlayerGui
+local StarterGui = game:GetService("StarterGui")
+local function hideCore(on)
+    pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, not on) end)
+end
+
 
 local Stage, Main, Launcher, Content
 local FpsLabel, PlayerLabel, SessionLabel
@@ -1100,8 +1105,9 @@ local function pageOverview()
     addAction(quick, "CHANGE THEME", UDim2.fromOffset(12, 62), UDim2.new(0.48, -12, 0, 34), function()
         State.Page = "APPEARANCE"; renderUI()
     end, "primary")
-    addAction(quick, "VISUAL LAB", UDim2.new(0.52, 0, 0, 62), UDim2.new(0.48, -12, 0, 34), function()
-        State.Page = "VISUAL LAB"; renderUI()
+    addAction(quick, "OPEN LOCAL", UDim2.new(0.52, 0, 0, 62), UDim2.new(0.48, -12, 0, 34), function()
+        State.Page = "LOCAL"; renderUI()
+        if openPanel then openPanel() end
     end, "secondary")
 end
 
@@ -2027,7 +2033,12 @@ local function runEidOpen(layer)
 end
 
 openPanel = function()
-    if State.Destroyed or State.PanelVisible or State.Opening then return end
+    if State.Destroyed then return end
+    if State.PanelVisible and Main and Main.Visible then return end
+    if State.Opening then
+        -- force unlock stuck state
+        State.Opening = false
+    end
     State.Opening = true
     local layer = makeOpeningLayer()
     if State.ReduceMotion then
@@ -2461,6 +2472,38 @@ local function runTerminalLoading(done)
     end)
 end
 
+
+local function bootShow()
+    local ok, err = pcall(function()
+        hideCore(false)
+        State.Opening = false
+        State.PanelVisible = false
+        renderUI()
+        task.wait(0.05)
+        if openPanel then openPanel() end
+        task.delay(1.2, function()
+            if Main and Main.Parent and not Main.Visible then
+                State.Opening = false
+                State.PanelVisible = true
+                Main.Visible = true
+                Main.BackgroundTransparency = 0
+                local sc = Main:FindFirstChildOfClass("UIScale")
+                if sc then sc.Scale = State.PanelScale or 1 end
+                if Launcher then Launcher.Visible = true end
+            end
+        end)
+    end)
+    if not ok then
+        warn("[BAXTARA] bootShow error:", err)
+        pcall(function()
+            hideCore(false)
+            renderUI()
+            if Main then Main.Visible = true; State.PanelVisible = true end
+            if Launcher then Launcher.Visible = true end
+        end)
+    end
+end
+
 local function showKeyGate()
     hideCore(true)
     local gate = Instance.new("Frame")
@@ -2617,9 +2660,7 @@ local function showKeyGate()
             if doSave then saveKey() end
             gate:Destroy()
             local function afterLoad()
-                hideCore(false)
-                renderUI()
-                openPanel()
+                bootShow()
             end
             if styleCartoon then
                 runCartoonLoading(afterLoad)
@@ -2637,17 +2678,20 @@ local function showKeyGate()
 end
 
 -- Boot sequence
-if keySaved() or getgenv().BAXTARA_UNLOCKED then
-    task.spawn(function()
-        hideCore(true)
-        runTerminalLoading(function()
-            hideCore(false)
-            renderUI()
-        end)
+task.spawn(function()
+    local okBoot, errBoot = pcall(function()
+        if keySaved() or getgenv().BAXTARA_UNLOCKED == true then
+            hideCore(true)
+            runTerminalLoading(bootShow)
+        else
+            showKeyGate()
+        end
     end)
-else
-    showKeyGate()
-end
+    if not okBoot then
+        warn("[BAXTARA] boot error:", errBoot)
+        pcall(bootShow)
+    end
+end)
 
 -- connect input (was after renderUI)
 connect(UserInputService.InputChanged, function(input)
