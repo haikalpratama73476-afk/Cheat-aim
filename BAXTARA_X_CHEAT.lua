@@ -108,7 +108,7 @@ local Themes = {
 }
 
 local State = {
-    Theme = "Galaxy",
+    Theme = "Modern",
     Page = "OVERVIEW",
     PanelVisible = false,
     Opening = false,
@@ -177,6 +177,7 @@ local State = {
     ModernESP = false,
     ModernAim = false,
     PanelHidden = false,
+    PanelScale = 1.0,
     ESP3D = false,
     ESPGhost = false,
     ESPGhostRange = 80,
@@ -1368,6 +1369,18 @@ local function pageLocal()
             if Launcher then Launcher.Visible = true end
             notify(Main.Visible and "Panel shown" or "Panel hidden — BX to reopen")
         end
+    end); y = y + 42
+    addAction(Content, "Panel SIZE + (bigger)", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        State.PanelScale = math.clamp((State.PanelScale or 1) + 0.1, 0.6, 1.4)
+        local s = Main and Main:FindFirstChild("BX_Scale")
+        if s then s.Scale = State.PanelScale end
+        notify("Scale " .. string.format("%.1f", State.PanelScale))
+    end); y = y + 42
+    addAction(Content, "Panel SIZE - (smaller)", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        State.PanelScale = math.clamp((State.PanelScale or 1) - 0.1, 0.6, 1.4)
+        local s = Main and Main:FindFirstChild("BX_Scale")
+        if s then s.Scale = State.PanelScale end
+        notify("Scale " .. string.format("%.1f", State.PanelScale))
     end)
 end
 
@@ -1703,7 +1716,7 @@ local function makePanel()
             BorderSizePixel = 0,
             ScrollBarThickness = 0,
             ScrollingDirection = Enum.ScrollingDirection.X,
-            CanvasSize = UDim2.new(0, #PageNames * 119, 0, 0),
+            CanvasSize = UDim2.new(0, #PageNames * 125, 0, 0),
             ZIndex = 23,
         }, Main)
         make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder }, nav)
@@ -1745,21 +1758,41 @@ local function makePanel()
     elseif Theme.Style == "Eid" and not mobile then
         -- Eid uses a right-hand ornamental menu, deliberately unlike Modern's left rail.
         navHorizontal = false
-        nav = make("Frame", {
+        nav = make("ScrollingFrame", {
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, -10, 0, bodyTop + 2),
             Size = UDim2.new(0, 112, 1, -(bodyTop + 14)),
             BackgroundColor3 = Theme.Surface,
             BorderSizePixel = 0,
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = Theme.Accent,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 58 + 30),
             ZIndex = 23,
         }, Main)
         corner(nav, 18); stroke(nav, Theme.Accent, 1.2, 0.38)
         make("UIListLayout", { Padding = UDim.new(0, 7), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, nav)
-        make("UIPadding", { PaddingTop = UDim.new(0, 9), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }, nav)
-        label(nav, "☾  MENU", 8, Theme.Accent, Enum.Font.GothamBold,
-            UDim2.new(0, 0, 1, -23), UDim2.new(1, 0, 0, 14), Enum.TextXAlignment.Center)
+        make("UIPadding", { PaddingTop = UDim.new(0, 9), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingBottom = UDim.new(0, 12) }, nav)
         contentX, contentY = 12, bodyTop + 2
         contentSize = UDim2.new(1, -134, 1, -(bodyTop + 14))
+    elseif Theme.Style == "Modern" and not mobile then
+        navHorizontal = false
+        nav = make("ScrollingFrame", {
+            Position = UDim2.fromOffset(10, bodyTop + 2),
+            Size = UDim2.new(0, 100, 1, -(bodyTop + 14)),
+            BackgroundColor3 = Theme.Surface,
+            BorderSizePixel = 0,
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = Theme.Accent,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 56 + 24),
+            ZIndex = 23,
+        }, Main)
+        corner(nav, 12); stroke(nav, Theme.Border, 1, 0.5)
+        make("UIListLayout", { Padding = UDim.new(0, 5), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, nav)
+        make("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 10) }, nav)
+        contentX, contentY = 114, bodyTop + 2
+        contentSize = UDim2.new(1, -126, 1, -(bodyTop + 14))
     else
         -- Compact-screen fallback: theme-specific horizontal nav without clipping.
         navHorizontal = true
@@ -1770,7 +1803,7 @@ local function makePanel()
             BorderSizePixel = 0,
             ScrollBarThickness = 0,
             ScrollingDirection = Enum.ScrollingDirection.X,
-            CanvasSize = UDim2.new(0, #PageNames * 115, 0, 0),
+            CanvasSize = UDim2.new(0, #PageNames * 125, 0, 0),
             ZIndex = 23,
         }, Main)
         make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, nav)
@@ -1797,7 +1830,15 @@ local function makePanel()
     }, Main)
 
     bindDrag(header)
+    -- panel scale
+    local scaleObj = Main:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+    scaleObj.Name = "BX_Scale"
+    scaleObj.Scale = State.PanelScale or 1
+    scaleObj.Parent = Main
+    B = B or {}
+    B.PanelScaleObj = scaleObj
 end
+
 
 local function revealPanel()
     if State.Destroyed or not Main or not Main.Parent then return end
@@ -2137,11 +2178,13 @@ local function drawLogo(parent, pos, size)
 end
 
 local function runCartoonLoading(done)
+    hideCore(true)
     local layer = Instance.new("Frame")
     layer.Size = UDim2.fromScale(1, 1)
-    layer.BackgroundColor3 = Color3.fromRGB(12, 14, 28)
+    layer.BackgroundColor3 = Color3.fromRGB(8, 10, 20)
     layer.BorderSizePixel = 0
-    layer.ZIndex = 300
+    layer.ZIndex = 1100
+    layer.Active = true
     layer.Parent = ScreenGui
     -- stage floor
     local floor = Instance.new("Frame")
@@ -2322,11 +2365,13 @@ local function runCartoonLoading(done)
 end
 
 local function runTerminalLoading(done)
+    hideCore(true)
     local layer = Instance.new("Frame")
     layer.Size = UDim2.fromScale(1, 1)
-    layer.BackgroundColor3 = Color3.fromRGB(6, 10, 14)
+    layer.BackgroundColor3 = Color3.fromRGB(4, 8, 12)
     layer.BorderSizePixel = 0
-    layer.ZIndex = 100
+    layer.ZIndex = 1100
+    layer.Active = true
     layer.Parent = ScreenGui
     drawLogo(layer, UDim2.new(0.5, -36, 0.22, 0), 72)
     local term = Instance.new("Frame")
@@ -2417,14 +2462,31 @@ local function runTerminalLoading(done)
 end
 
 local function showKeyGate()
+    hideCore(true)
     local gate = Instance.new("Frame")
     gate.Name = "KeyGate"
     gate.Size = UDim2.fromScale(1, 1)
-    gate.BackgroundColor3 = Color3.fromRGB(4, 6, 12)
+    gate.Position = UDim2.fromScale(0, 0)
+    gate.BackgroundColor3 = Color3.fromRGB(2, 4, 8)
     gate.BorderSizePixel = 0
-    gate.ZIndex = 400
+    gate.ZIndex = 1000
     gate.Active = true
     gate.Parent = ScreenGui
+    -- extra top/bottom bars to cover any inset
+    local topCover = Instance.new("Frame")
+    topCover.Size = UDim2.new(1, 0, 0, 80)
+    topCover.Position = UDim2.fromOffset(0, -40)
+    topCover.BackgroundColor3 = Color3.fromRGB(2, 4, 8)
+    topCover.BorderSizePixel = 0
+    topCover.ZIndex = 1001
+    topCover.Parent = gate
+    local botCover = Instance.new("Frame")
+    botCover.Size = UDim2.new(1, 0, 0, 100)
+    botCover.Position = UDim2.new(0, 0, 1, -40)
+    botCover.BackgroundColor3 = Color3.fromRGB(2, 4, 8)
+    botCover.BorderSizePixel = 0
+    botCover.ZIndex = 1001
+    botCover.Parent = gate
     drawLogo(gate, UDim2.new(0.5, -40, 0.12, 0), 80)
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, -40, 0, 28)
@@ -2555,6 +2617,7 @@ local function showKeyGate()
             if doSave then saveKey() end
             gate:Destroy()
             local function afterLoad()
+                hideCore(false)
                 renderUI()
                 openPanel()
             end
@@ -2576,9 +2639,10 @@ end
 -- Boot sequence
 if keySaved() or getgenv().BAXTARA_UNLOCKED then
     task.spawn(function()
+        hideCore(true)
         runTerminalLoading(function()
+            hideCore(false)
             renderUI()
-            -- launcher only until user opens
         end)
     end)
 else
@@ -3455,55 +3519,112 @@ function Features.BuildLocalWorld()
     Features._LocalWorld = folder
     local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     local base = root and root.Position or Vector3.new(0, 5, 0)
-    if State.ToolsSkyLogo or State.ToolsLocalVisual then
-        for i = 1, 4 do
-            local ang = (i / 4) * math.pi * 2
-            local p = Instance.new("Part")
-            p.Anchored = true; p.CanCollide = false
-            p.Size = Vector3.new(40, 40, 1)
-            p.Color = Color3.fromRGB(0, 40, 50)
-            p.Material = Enum.Material.Neon
-            p.CFrame = CFrame.new(base + Vector3.new(math.cos(ang) * 120, 90, math.sin(ang) * 120)) * CFrame.Angles(0, ang + math.pi/2, 0)
-            p.Parent = folder
-            local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front; sg.Parent = p
-            local f = Instance.new("Frame"); f.Size = UDim2.fromScale(1,1); f.BackgroundColor3 = Color3.fromRGB(6,12,18); f.Parent = sg
-            local ring = Instance.new("Frame"); ring.AnchorPoint = Vector2.new(0.5,0.5); ring.Position = UDim2.fromScale(0.5,0.4); ring.Size = UDim2.fromScale(0.5,0.5); ring.BackgroundTransparency = 1; ring.Parent = f
-            Instance.new("UICorner", ring).CornerRadius = UDim.new(1,0)
-            local rs = Instance.new("UIStroke"); rs.Color = Color3.fromRGB(0,220,200); rs.Thickness = 4; rs.Parent = ring
-            local core = Instance.new("Frame"); core.AnchorPoint = Vector2.new(0.5,0.5); core.Position = UDim2.fromScale(0.5,0.4); core.Size = UDim2.fromScale(0.3,0.3); core.BackgroundColor3 = Color3.fromRGB(0,200,170); core.Parent = f
-            Instance.new("UICorner", core).CornerRadius = UDim.new(0,8)
-            local bx = Instance.new("TextLabel"); bx.Size = UDim2.fromScale(1,1); bx.BackgroundTransparency = 1; bx.Text = "BX"; bx.TextColor3 = Color3.fromRGB(5,10,15); bx.Font = Enum.Font.GothamBlack; bx.TextScaled = true; bx.Parent = core
-            local mask = Instance.new("Frame"); mask.AnchorPoint = Vector2.new(0.5,0.5); mask.Position = UDim2.fromScale(0.5,0.78); mask.Size = UDim2.fromScale(0.4,0.2); mask.BackgroundColor3 = Color3.fromRGB(20,25,35); mask.Parent = f
-            Instance.new("UICorner", mask).CornerRadius = UDim.new(1,0)
-            local e1 = Instance.new("Frame"); e1.Size = UDim2.fromScale(0.22,0.35); e1.Position = UDim2.fromScale(0.2,0.32); e1.BackgroundColor3 = Color3.new(0,0,0); e1.Parent = mask
-            local e2 = e1:Clone(); e2.Position = UDim2.fromScale(0.58,0.32); e2.Parent = mask
-        end
+
+    -- lighting sky local feel
+    pcall(function()
+        local Lighting = game:GetService("Lighting")
+        Lighting.ClockTime = 20
+        Lighting.Brightness = 2
+        Lighting.FogColor = Color3.fromRGB(5, 20, 30)
+        Lighting.FogEnd = 600
+        Lighting.Ambient = Color3.fromRGB(30, 50, 60)
+        local sky = Lighting:FindFirstChildOfClass("Sky")
+        if not sky then sky = Instance.new("Sky"); sky.Parent = Lighting end
+        sky.CelestialBodiesShown = false
+    end)
+
+    -- giant sky logo discs
+    for i = 1, 6 do
+        local ang = (i / 6) * math.pi * 2
+        local p = Instance.new("Part")
+        p.Anchored = true; p.CanCollide = false
+        p.Size = Vector3.new(60, 60, 2)
+        p.Color = Color3.fromRGB(0, 30, 40)
+        p.Material = Enum.Material.Neon
+        p.CFrame = CFrame.new(base + Vector3.new(math.cos(ang) * 160, 110, math.sin(ang) * 160))
+            * CFrame.Angles(0, ang + math.pi/2, 0)
+        p.Parent = folder
+        local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front; sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud; sg.PixelsPerStud = 12; sg.Parent = p
+        local f = Instance.new("Frame"); f.Size = UDim2.fromScale(1,1); f.BackgroundColor3 = Color3.fromRGB(4, 10, 16); f.Parent = sg
+        local ring = Instance.new("Frame"); ring.AnchorPoint = Vector2.new(0.5,0.5); ring.Position = UDim2.fromScale(0.5,0.38); ring.Size = UDim2.fromScale(0.55,0.55); ring.BackgroundTransparency = 1; ring.Parent = f
+        Instance.new("UICorner", ring).CornerRadius = UDim.new(1,0)
+        local rs = Instance.new("UIStroke"); rs.Color = Color3.fromRGB(0,230,200); rs.Thickness = 6; rs.Parent = ring
+        local core = Instance.new("Frame"); core.AnchorPoint = Vector2.new(0.5,0.5); core.Position = UDim2.fromScale(0.5,0.38); core.Size = UDim2.fromScale(0.32,0.32); core.BackgroundColor3 = Color3.fromRGB(0,210,175); core.Parent = f
+        Instance.new("UICorner", core).CornerRadius = UDim.new(0,10)
+        local bx = Instance.new("TextLabel"); bx.Size = UDim2.fromScale(1,1); bx.BackgroundTransparency = 1; bx.Text = "BX"; bx.TextColor3 = Color3.fromRGB(5,12,18); bx.Font = Enum.Font.GothamBlack; bx.TextScaled = true; bx.Parent = core
+        local title = Instance.new("TextLabel"); title.Size = UDim2.new(1,-20,0,40); title.Position = UDim2.new(0,10,0.72,0); title.BackgroundTransparency = 1
+        title.Text = "BAXTARA X CHEAT"; title.TextColor3 = Color3.fromRGB(0,255,210); title.Font = Enum.Font.GothamBlack; title.TextScaled = true; title.Parent = f
     end
-    if State.ToolsMapTag or State.ToolsLocalVisual then
-        for i = 1, 6 do
-            local ang = (i/6)*math.pi*2
-            local tower = Instance.new("Part"); tower.Anchored = true; tower.CanCollide = false
-            tower.Size = Vector3.new(6,28,6); tower.Color = Color3.fromRGB(20,60,80); tower.Material = Enum.Material.SmoothPlastic
-            tower.CFrame = CFrame.new(base + Vector3.new(math.cos(ang)*55, 14, math.sin(ang)*55)); tower.Parent = folder
-            local top = Instance.new("Part"); top.Anchored = true; top.CanCollide = false
-            top.Size = Vector3.new(10,2,10); top.Color = Color3.fromRGB(0,200,160); top.Material = Enum.Material.Neon
-            top.CFrame = tower.CFrame * CFrame.new(0,15,0); top.Parent = folder
-            local sg = Instance.new("BillboardGui"); sg.Size = UDim2.fromOffset(160,40); sg.StudsOffset = Vector3.new(0,4,0); sg.AlwaysOnTop = true; sg.Parent = top
-            local tl = Instance.new("TextLabel"); tl.Size = UDim2.fromScale(1,1); tl.BackgroundTransparency = 1
-            tl.Text = "BAXTARA X CHEAT"; tl.TextColor3 = Color3.fromRGB(0,255,200); tl.Font = Enum.Font.GothamBlack; tl.TextScaled = true; tl.Parent = sg
-        end
+
+    -- ground logo blocks scattered
+    for i = 1, 10 do
+        local ang = (i / 10) * math.pi * 2
+        local blk = Instance.new("Part")
+        blk.Anchored = true; blk.CanCollide = false
+        blk.Size = Vector3.new(12, 1.5, 12)
+        blk.Color = Color3.fromRGB(0, 80, 70)
+        blk.Material = Enum.Material.Neon
+        blk.CFrame = CFrame.new(base + Vector3.new(math.cos(ang) * (35 + i * 3), 1, math.sin(ang) * (35 + i * 3)))
+        blk.Parent = folder
+        local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Top; sg.Parent = blk
+        local tl = Instance.new("TextLabel"); tl.Size = UDim2.fromScale(1,1); tl.BackgroundTransparency = 1
+        tl.Text = "BAXTARA"; tl.TextColor3 = Color3.fromRGB(0,255,200); tl.Font = Enum.Font.GothamBlack; tl.TextScaled = true; tl.Parent = sg
     end
+
+    -- BIG HOUSE "BAXTARA HQ"
+    local houseBase = base + Vector3.new(0, 0, 70)
+    local floor = Instance.new("Part")
+    floor.Anchored = true; floor.CanCollide = false
+    floor.Size = Vector3.new(50, 2, 40)
+    floor.Color = Color3.fromRGB(40, 50, 60)
+    floor.Material = Enum.Material.SmoothPlastic
+    floor.CFrame = CFrame.new(houseBase + Vector3.new(0, 1, 0))
+    floor.Parent = folder
+    local wallF = Instance.new("Part"); wallF.Anchored = true; wallF.CanCollide = false
+    wallF.Size = Vector3.new(50, 22, 2); wallF.Color = Color3.fromRGB(25, 45, 55)
+    wallF.CFrame = CFrame.new(houseBase + Vector3.new(0, 12, -19)); wallF.Parent = folder
+    local wallB = wallF:Clone(); wallB.CFrame = CFrame.new(houseBase + Vector3.new(0, 12, 19)); wallB.Parent = folder
+    local wallL = Instance.new("Part"); wallL.Anchored = true; wallL.CanCollide = false
+    wallL.Size = Vector3.new(2, 22, 40); wallL.Color = Color3.fromRGB(25, 45, 55)
+    wallL.CFrame = CFrame.new(houseBase + Vector3.new(-24, 12, 0)); wallL.Parent = folder
+    local wallR = wallL:Clone(); wallR.CFrame = CFrame.new(houseBase + Vector3.new(24, 12, 0)); wallR.Parent = folder
+    -- roof
+    local roof = Instance.new("WedgePart")
+    roof.Anchored = true; roof.CanCollide = false
+    roof.Size = Vector3.new(40, 14, 25)
+    roof.Color = Color3.fromRGB(0, 160, 130)
+    roof.Material = Enum.Material.Neon
+    roof.CFrame = CFrame.new(houseBase + Vector3.new(0, 30, 0)) * CFrame.Angles(0, math.rad(90), 0)
+    roof.Parent = folder
+    local roof2 = roof:Clone()
+    roof2.CFrame = CFrame.new(houseBase + Vector3.new(0, 30, 0)) * CFrame.Angles(0, math.rad(-90), 0)
+    roof2.Parent = folder
+    -- front logo wall
+    local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front; sg.Parent = wallF
+    local f = Instance.new("Frame"); f.Size = UDim2.fromScale(1,1); f.BackgroundColor3 = Color3.fromRGB(10, 20, 28); f.Parent = sg
+    local logo = Instance.new("TextLabel"); logo.Size = UDim2.new(1,-40,0,80); logo.Position = UDim2.new(0,20,0.35,0)
+    logo.BackgroundTransparency = 1; logo.Text = "BAXTARA X CHEAT"; logo.TextColor3 = Color3.fromRGB(0,255,210)
+    logo.Font = Enum.Font.GothamBlack; logo.TextScaled = true; logo.Parent = f
+    local sub = Instance.new("TextLabel"); sub.Size = UDim2.new(1,-40,0,30); sub.Position = UDim2.new(0,20,0.55,0)
+    sub.BackgroundTransparency = 1; sub.Text = "HEADQUARTERS"; sub.TextColor3 = Color3.fromRGB(120,200,180)
+    sub.Font = Enum.Font.GothamBold; sub.TextScaled = true; sub.Parent = f
+    -- door
+    local door = Instance.new("Part"); door.Anchored = true; door.CanCollide = false
+    door.Size = Vector3.new(10, 14, 1); door.Color = Color3.fromRGB(0, 100, 90)
+    door.CFrame = CFrame.new(houseBase + Vector3.new(0, 8, -20)); door.Parent = folder
+
     if State.ToolsCharBX then
         local head = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head")
         if head then
-            local bb = Instance.new("BillboardGui"); bb.Size = UDim2.fromOffset(140,50); bb.StudsOffset = Vector3.new(0,3,0); bb.AlwaysOnTop = true; bb.Parent = head
+            local bb = Instance.new("BillboardGui"); bb.Size = UDim2.fromOffset(160,50); bb.StudsOffset = Vector3.new(0,3,0); bb.AlwaysOnTop = true; bb.Parent = head
             Features._CharTag = bb
-            local f = Instance.new("Frame"); f.Size = UDim2.fromScale(1,1); f.BackgroundColor3 = Color3.fromRGB(8,16,22); f.Parent = bb
-            Instance.new("UICorner", f).CornerRadius = UDim.new(0,8)
+            local fr = Instance.new("Frame"); fr.Size = UDim2.fromScale(1,1); fr.BackgroundColor3 = Color3.fromRGB(8,16,22); fr.Parent = bb
+            Instance.new("UICorner", fr).CornerRadius = UDim.new(0,8)
             local t = Instance.new("TextLabel"); t.Size = UDim2.fromScale(1,1); t.BackgroundTransparency = 1
-            t.Text = "BAXTARA X CHEAT"; t.TextColor3 = Color3.fromRGB(0,255,200); t.Font = Enum.Font.GothamBlack; t.TextScaled = true; t.Parent = f
+            t.Text = "BAXTARA X CHEAT"; t.TextColor3 = Color3.fromRGB(0,255,200); t.Font = Enum.Font.GothamBlack; t.TextScaled = true; t.Parent = fr
         end
     end
+    notify("BAXTARA HQ + logos built (local only)")
 end
 
 print("[BAXTARA X CHEAT] v7.1 Four Worlds UI + Aim/ESP/Brutal/Local | BX or RightControl")
