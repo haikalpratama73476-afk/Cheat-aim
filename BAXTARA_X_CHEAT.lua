@@ -544,7 +544,7 @@ local ContentLayout = New("UIListLayout", {Padding=UDim.new(0,8), SortOrder=Enum
 New("UIPadding", {PaddingBottom=UDim.new(0,6), PaddingRight=UDim.new(0,4)}, Content)
 
 local SideNames = {"Home","ESP","Aim","Brutal","LocalCfg","Settings"}
-local TabButtons, CurrentTab = {}, "Home"
+local TabButtons, CurrentTab = {}, ""
 local PageBuilders = {}
 
 local function ClearContent()
@@ -1078,6 +1078,27 @@ PageBuilders.Settings = function()
     Action(un, 42, "UNLOAD SCRIPT", function()
         CleanupAll(); ScreenGui:Destroy(); getgenv().BAXTARA=nil
     end)
+end
+
+local function SelectTab(name)
+    CurrentTab = name
+    for n, btn in pairs(TabButtons) do
+        local active = (n == name)
+        pcall(function()
+            TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = active and T.Element or T.Sidebar}):Play()
+            local ind = btn:FindFirstChild("Ind")
+            if ind then ind.BackgroundTransparency = active and 0 or 1 end
+        end)
+    end
+    if PageBuilders[name] then
+        local ok, err = pcall(PageBuilders[name])
+        if not ok then
+            warn("[BAXTARA] Page error:", name, err)
+            pcall(function()
+                Notify("ERROR", "Page "..name.." failed")
+            end)
+        end
+    end
 end
 
 for i, name in ipairs(SideNames) do
