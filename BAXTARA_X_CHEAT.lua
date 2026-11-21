@@ -1,2310 +1,1477 @@
 --[[
-    BAXTARA X CHEAT  v5.5
-    Cyber Premium UI + full features
-    Fix: sky branding, hitbox head (no freeze), freeze players, key save
+    BAXTARA X CHEAT — FOUR WORLDS UI REDESIGN
+    Version: 6.0 UI-only redesign
+
+    Install: Roblox Studio > StarterPlayer > StarterPlayerScripts > LocalScript
+    This file builds a local interface only. It does not modify gameplay,
+    characters, other players, RemoteEvents, hitboxes, weapons, server state,
+    anti-cheat, bans, kicks, or moderation behavior.
 ]]
 
-local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService     = game:GetService("TweenService")
-local Lighting         = game:GetService("Lighting")
-local Workspace        = game:GetService("Workspace")
-local CoreGui          = game:GetService("CoreGui")
-local TeleportService  = game:GetService("TeleportService")
-local StarterGui       = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-local DrawingLib = Drawing
-
-getgenv().BAXTARA = getgenv().BAXTARA or {}
-local B = getgenv().BAXTARA
-
--- Persist unlock across re-execute in same session
-local ACCESS_KEY = "BAXTARA X CHEAT"
-local WA_URL = "https://whatsapp.com/channel/0029Vb8PluMLtOj5TTbxRl1k"
-local KEY_FILE = "baxtara_key_save.txt"
-
-local function SaveKeyUnlock()
-    getgenv().BAXTARA_UNLOCKED = true
-    pcall(function()
-        if writefile then writefile(KEY_FILE, ACCESS_KEY) end
-    end)
+if not LocalPlayer then
+    warn("[BAXTARA] LocalPlayer is unavailable. Run this as a LocalScript.")
+    return
 end
 
-local function LoadKeyUnlock()
-    if getgenv().BAXTARA_UNLOCKED == true then return true end
-    local ok, data = pcall(function()
-        if isfile and isfile(KEY_FILE) and readfile then
-            return readfile(KEY_FILE)
-        end
-        return nil
-    end)
-    if ok and data and tostring(data):upper():find("BAXTARA") then
-        getgenv().BAXTARA_UNLOCKED = true
-        return true
-    end
-    return false
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local GUI_NAME = "BAXTARA_FOUR_WORLDS_UI"
+
+local previous = PlayerGui:FindFirstChild(GUI_NAME)
+if previous then
+    previous:Destroy()
 end
 
-B.Settings = B.Settings or {
-    Aim = {
-        Enabled=false, VisibilityCheck=true, HeadAim=true, BodyAim=false, MultiBone=false,
-        FOVCircle=true, AimDistance=800, AimLock=false, AimSmoothing=0.15, AimPrediction=false,
-        PredictionAmount=0.12, DrawTargetLine=true, FOV=180, TeamCheck=true,
-        SilentAim=false, AntiMiss=false, HitPart="Head", AimNPC=false,
-    },
-    ESP = {
-        Enabled=false, Box=true, Name=true, HealthBar=true, Distance=true, Tracer=true,
-        Skeleton=false, VisibleCheck=true, PriorityMark=true, Offscreen=true, MaxDistance=1000,
-        NPCESP=false, TracerOrigin="Bottom", -- Bottom / Center / Top / Left / Right
-        ColorName="Cyan",
-        VisibleColor=Color3.fromRGB(0,230,200), HiddenColor=Color3.fromRGB(255,85,105),
-        PriorityColor=Color3.fromRGB(255,200,50), TracerColor=Color3.fromRGB(0,230,200),
-        FOVColor=Color3.fromRGB(0,230,200), BoxColor=Color3.fromRGB(0,230,200),
-    },
-    Brutal = {
-        Fly=false, FlySpeed=45, SpeedHack=false, SpeedValue=24, InfiniteJump=false, Noclip=false,
-        SuperJump=false, SuperJumpPower=80, GhostMode=false, GodMode=false,
-        HitboxExpand=false, HitboxSize=8, HitboxPart="Body", HitboxRedAim=true,
-        AntiCooldown=false, InfiniteAmmo=false, AutoShoot=false, AttackSpeed=false, AttackSpeedVal=8,
-        AutoKill=false, FlyKillAll=false, SpinBot=false, SpinSpeed=40,
-        GodMode=false, GhostMode=false,
-    },
-    LocalCfg = {
-        SkyBAXTARA=false, FreezeOthers=false, AntiLagSelf=true, ServerLag=false,
-        SelfTag=false, SelfTagText="BAXTARA", SelfTagColor="Gold", SelfTagRainbow=false,
-        ServerChat=false, UnlockPasses=false, AutoRank=false,
-        TPTarget="Player", -- Player / Object
-    },
-    Troll = {
-        FakeBan=false, FakeBanText="You have been banned. Reason: Exploiting (Code 2A)",
-    },
-    VIP = {
-        Unlocked=false, Injected=false,
-        MagicBullet=false, KillAura=false, VoidWalk=false, NinjaDash=false, WallCling=false,
-        BackstabTP=false, FakeDisconnect=false, RealityWarp=false, MeteorRain=false,
-        AuraParticle=false, GoldESP=false, StreamerMode=false, SpoofName=false,
-        ChatTag=false, DeathEffect=false, SkyVIP=false,
-    },
-    Visual = { FullBright=false, AntiLag=false },
-    Protect = { AntiKick=true, AutoHopOnFlag=true, SoftCamera=true },
-    UI = { Theme="Modern" },
-}
-
-B.Connections, B.Drawings, B.ESPObjects = {}, {}, {}
-B.CurrentTarget, B.LockedTarget = nil, nil
-B.OriginalWalkSpeed, B.OriginalJumpPower, B.OriginalJumpHeight = 16, 50, 7.2
-B.Unlocked = false
-B.FlyBV, B.FlyBG, B.NoclipConn, B.JumpConn = nil, nil, nil, nil
-B.LastShoot, B.SessionStart = 0, tick()
-B.SkyFolder, B.HitboxParts, B.FrozenParts = nil, {}, {}
-
-local function AddConn(c) table.insert(B.Connections, c) return c end
-
-local function CleanupAll()
-    for _, c in ipairs(B.Connections) do pcall(function() c:Disconnect() end) end
-    B.Connections = {}
-    for _, d in pairs(B.Drawings) do pcall(function() if d.Remove then d:Remove() end end) end
-    B.Drawings = {}
-    for _, pack in pairs(B.ESPObjects) do
-        for k, d in pairs(pack) do
-            if k == "Skel" then for _, l in ipairs(d) do pcall(function() if l.Remove then l:Remove() end end) end
-            else pcall(function() if d and d.Remove then d:Remove() end end) end
-        end
-    end
-    B.ESPObjects = {}
-    if B.FlyBV then pcall(function() B.FlyBV:Destroy() end) B.FlyBV=nil end
-    if B.FlyBG then pcall(function() B.FlyBG:Destroy() end) B.FlyBG=nil end
-    if B.SkyFolder then pcall(function() B.SkyFolder:Destroy() end) B.SkyFolder=nil end
-    for _, p in pairs(B.HitboxParts) do pcall(function() p:Destroy() end) end
-    B.HitboxParts = {}
-    for _, p in pairs(B.FrozenParts) do pcall(function() if p.Parent then p.Anchored=false end end) end
-    B.FrozenParts = {}
-end
-
-local function IsAlive(char)
-    if not char then return false end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    return hum and hum.Health > 0
-end
-local function GetChar(p) return p and p.Character end
-local function GetRoot(char)
-    return char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso"))
-end
-local function GetHead(char) return char and char:FindFirstChild("Head") end
-local function TeamOK(p)
-    if not B.Settings.Aim.TeamCheck then return true end
-    if not LocalPlayer.Team then return true end
-    return p.Team ~= LocalPlayer.Team
-end
-local function WorldToScreen(pos)
-    local v, on = Camera:WorldToViewportPoint(pos)
-    return Vector2.new(v.X, v.Y), on, v.Z
-end
-local function DistTo(pos)
-    local r = GetRoot(LocalPlayer.Character)
-    if not r then return 99999 end
-    return (r.Position - pos).Magnitude
-end
-local function ScreenCenter()
-    local vp = Camera.ViewportSize
-    return Vector2.new(vp.X*0.5, vp.Y*0.5)
-end
-local function IsVisible(from, to, char)
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {LocalPlayer.Character, char}
-    params.IgnoreWater = true
-    return Workspace:Raycast(from, to-from, params) == nil
-end
-
--- Themes
 local Themes = {
-    Modern = {
-        Name="Modern",
-        Background=Color3.fromRGB(8, 12, 20),
-        Sidebar=Color3.fromRGB(12, 18, 28),
-        Card=Color3.fromRGB(16, 24, 36),
-        Element=Color3.fromRGB(24, 34, 50),
-        Accent=Color3.fromRGB(0, 220, 200),
-        Accent2=Color3.fromRGB(60, 140, 255),
-        White=Color3.fromRGB(240, 248, 255),
-        Muted=Color3.fromRGB(120, 140, 165),
-        Off=Color3.fromRGB(40, 50, 65),
-        Red=Color3.fromRGB(255, 90, 110),
-        Border=Color3.fromRGB(0, 200, 180),
-        Corner=12,
-        StrokeThick=1.2,
-    },
     Galaxy = {
-        Name="Galaxy",
-        Background=Color3.fromRGB(6, 4, 18),
-        Sidebar=Color3.fromRGB(12, 8, 28),
-        Card=Color3.fromRGB(18, 12, 36),
-        Element=Color3.fromRGB(28, 18, 48),
-        Accent=Color3.fromRGB(180, 120, 255),
-        Accent2=Color3.fromRGB(80, 180, 255),
-        White=Color3.fromRGB(245, 240, 255),
-        Muted=Color3.fromRGB(140, 120, 180),
-        Off=Color3.fromRGB(35, 25, 55),
-        Red=Color3.fromRGB(255, 100, 140),
-        Border=Color3.fromRGB(160, 100, 255),
-        Corner=16,
-        StrokeThick=1.4,
+        Name = "GALAXY / ORBITAL",
+        Background = Color3.fromRGB(5, 7, 19),
+        Surface = Color3.fromRGB(11, 15, 34),
+        Card = Color3.fromRGB(16, 22, 46),
+        Raised = Color3.fromRGB(23, 31, 62),
+        Element = Color3.fromRGB(30, 38, 75),
+        Text = Color3.fromRGB(239, 243, 255),
+        Muted = Color3.fromRGB(139, 153, 190),
+        Accent = Color3.fromRGB(153, 100, 255),
+        Accent2 = Color3.fromRGB(61, 205, 255),
+        Border = Color3.fromRGB(111, 83, 197),
+        Off = Color3.fromRGB(52, 59, 91),
+        Danger = Color3.fromRGB(255, 100, 132),
+        Radius = 18,
+        Style = "Galaxy",
     },
     Lego = {
-        Name="Lego",
-        Background=Color3.fromRGB(25, 30, 40),
-        Sidebar=Color3.fromRGB(35, 45, 60),
-        Card=Color3.fromRGB(50, 60, 80),
-        Element=Color3.fromRGB(70, 85, 110),
-        Accent=Color3.fromRGB(255, 200, 40),
-        Accent2=Color3.fromRGB(0, 120, 255),
-        White=Color3.fromRGB(255, 255, 255),
-        Muted=Color3.fromRGB(180, 190, 200),
-        Off=Color3.fromRGB(60, 70, 85),
-        Red=Color3.fromRGB(220, 40, 40),
-        Border=Color3.fromRGB(255, 180, 0),
-        Corner=4,
-        StrokeThick=3,
+        Name = "LEGO / BRICKWORK",
+        Background = Color3.fromRGB(26, 32, 45),
+        Surface = Color3.fromRGB(39, 49, 66),
+        Card = Color3.fromRGB(55, 68, 88),
+        Raised = Color3.fromRGB(71, 86, 109),
+        Element = Color3.fromRGB(88, 105, 130),
+        Text = Color3.fromRGB(255, 255, 255),
+        Muted = Color3.fromRGB(205, 212, 223),
+        Accent = Color3.fromRGB(255, 196, 37),
+        Accent2 = Color3.fromRGB(44, 139, 255),
+        Border = Color3.fromRGB(255, 174, 34),
+        Off = Color3.fromRGB(77, 88, 107),
+        Danger = Color3.fromRGB(255, 91, 83),
+        Radius = 5,
+        Style = "Lego",
     },
-    Ramadhan = {
-        Name="Ramadhan",
-        Background=Color3.fromRGB(8, 18, 12),
-        Sidebar=Color3.fromRGB(12, 28, 18),
-        Card=Color3.fromRGB(18, 36, 24),
-        Element=Color3.fromRGB(28, 50, 35),
-        Accent=Color3.fromRGB(218, 175, 70),
-        Accent2=Color3.fromRGB(40, 160, 90),
-        White=Color3.fromRGB(255, 250, 235),
-        Muted=Color3.fromRGB(150, 160, 130),
-        Off=Color3.fromRGB(35, 50, 40),
-        Red=Color3.fromRGB(200, 80, 60),
-        Border=Color3.fromRGB(200, 160, 50),
-        Corner=14,
-        StrokeThick=1.5,
+    Modern = {
+        Name = "MODERN / STUDIO",
+        Background = Color3.fromRGB(13, 17, 24),
+        Surface = Color3.fromRGB(19, 25, 34),
+        Card = Color3.fromRGB(24, 31, 42),
+        Raised = Color3.fromRGB(31, 40, 53),
+        Element = Color3.fromRGB(39, 49, 64),
+        Text = Color3.fromRGB(242, 245, 250),
+        Muted = Color3.fromRGB(151, 163, 180),
+        Accent = Color3.fromRGB(95, 178, 255),
+        Accent2 = Color3.fromRGB(111, 226, 207),
+        Border = Color3.fromRGB(69, 90, 116),
+        Off = Color3.fromRGB(59, 70, 85),
+        Danger = Color3.fromRGB(255, 112, 119),
+        Radius = 13,
+        Style = "Modern",
+    },
+    Eid = {
+        Name = "IDUL FITRI / SERENITY",
+        Background = Color3.fromRGB(7, 27, 22),
+        Surface = Color3.fromRGB(12, 43, 34),
+        Card = Color3.fromRGB(17, 57, 44),
+        Raised = Color3.fromRGB(24, 72, 54),
+        Element = Color3.fromRGB(31, 86, 64),
+        Text = Color3.fromRGB(255, 249, 230),
+        Muted = Color3.fromRGB(190, 199, 164),
+        Accent = Color3.fromRGB(225, 190, 104),
+        Accent2 = Color3.fromRGB(92, 175, 119),
+        Border = Color3.fromRGB(191, 151, 76),
+        Off = Color3.fromRGB(55, 83, 67),
+        Danger = Color3.fromRGB(225, 106, 91),
+        Radius = 15,
+        Style = "Eid",
     },
 }
-local T = Themes.Modern
 
-local ThemeDecor = nil -- decorative overlay folder inside Main
-
-local function ClearThemeDecor()
-    if ThemeDecor then pcall(function() ThemeDecor:Destroy() end) ThemeDecor = nil end
-end
-
-local function StyleTabButtons()
-    for n, btn in pairs(TabButtons or {}) do
-        if not btn or not btn.Parent then continue end
-        local active = (n == CurrentTab)
-        if T.Name == "Lego" then
-            btn.BackgroundColor3 = active and Color3.fromRGB(255, 200, 40) or Color3.fromRGB(45, 55, 75)
-            local label = btn:FindFirstChildWhichIsA("TextLabel")
-            -- find text labels
-            for _, ch in ipairs(btn:GetChildren()) do
-                if ch:IsA("TextLabel") and ch.Name ~= "Ind" then
-                    ch.TextColor3 = active and Color3.fromRGB(30, 30, 40) or T.White
-                    ch.Font = Enum.Font.GothamBlack
-                end
-            end
-            local c = btn:FindFirstChildOfClass("UICorner")
-            if c then c.CornerRadius = UDim.new(0, 4) end
-            local ind = btn:FindFirstChild("Ind")
-            if ind then ind.BackgroundColor3 = Color3.fromRGB(0, 120, 255); ind.BackgroundTransparency = active and 0 or 1 end
-        elseif T.Name == "Galaxy" then
-            btn.BackgroundColor3 = active and Color3.fromRGB(40, 25, 70) or Color3.fromRGB(12, 8, 28)
-            for _, ch in ipairs(btn:GetChildren()) do
-                if ch:IsA("TextLabel") and ch.Text ~= "" and #ch.Text < 20 then
-                    ch.TextColor3 = active and Color3.fromRGB(220, 180, 255) or T.Muted
-                    ch.Font = Enum.Font.GothamBold
-                end
-            end
-            local c = btn:FindFirstChildOfClass("UICorner")
-            if c then c.CornerRadius = UDim.new(0, 10) end
-            local ind = btn:FindFirstChild("Ind")
-            if ind then ind.BackgroundColor3 = Color3.fromRGB(180, 120, 255); ind.BackgroundTransparency = active and 0 or 1 end
-        elseif T.Name == "Ramadhan" then
-            btn.BackgroundColor3 = active and Color3.fromRGB(30, 55, 35) or Color3.fromRGB(12, 28, 18)
-            for _, ch in ipairs(btn:GetChildren()) do
-                if ch:IsA("TextLabel") and ch.Text ~= "" and #ch.Text < 20 then
-                    ch.TextColor3 = active and Color3.fromRGB(255, 220, 140) or T.Muted
-                    ch.Font = Enum.Font.GothamBold
-                end
-            end
-            local c = btn:FindFirstChildOfClass("UICorner")
-            if c then c.CornerRadius = UDim.new(0, 12) end
-            local ind = btn:FindFirstChild("Ind")
-            if ind then ind.BackgroundColor3 = Color3.fromRGB(218, 175, 70); ind.BackgroundTransparency = active and 0 or 1 end
-        else -- Modern
-            btn.BackgroundColor3 = active and T.Element or T.Sidebar
-            for _, ch in ipairs(btn:GetChildren()) do
-                if ch:IsA("TextLabel") and ch.Text ~= "" and #ch.Text < 20 then
-                    ch.TextColor3 = active and T.White or T.Muted
-                    ch.Font = Enum.Font.GothamBold
-                end
-            end
-            local c = btn:FindFirstChildOfClass("UICorner")
-            if c then c.CornerRadius = UDim.new(0, 8) end
-            local ind = btn:FindFirstChild("Ind")
-            if ind then ind.BackgroundColor3 = T.Accent; ind.BackgroundTransparency = active and 0 or 1 end
-        end
-    end
-end
-
-local function ApplyTheme(name)
-    local th = Themes[name] or Themes.Modern
-    T = th
-    B.Settings.UI.Theme = name
-
-    local Main = B.Main
-    local Header = B.Header
-    local Sidebar = B.Sidebar
-    local MainBorder = B.MainBorder
-    local OpenBtn = B.OpenBtn
-    if not Main then Notify("THEME", "Panel not ready"); return end
-
-    Main.BackgroundColor3 = th.Background
-    if Header then Header.BackgroundColor3 = th.Sidebar end
-    if Sidebar then Sidebar.BackgroundColor3 = th.Sidebar end
-    if MainBorder then
-        MainBorder.Color = th.Border
-        MainBorder.Thickness = th.StrokeThick
-        MainBorder.Transparency = (name == "Lego") and 0.1 or 0.3
-    end
-    if OpenBtn then
-        OpenBtn.BackgroundColor3 = th.Accent
-        OpenBtn.TextColor3 = (name == "Lego" or name == "Ramadhan") and Color3.fromRGB(30, 25, 15) or th.Background
-        local oc = OpenBtn:FindFirstChildOfClass("UICorner")
-        if oc then oc.CornerRadius = UDim.new(0, name == "Lego" and 6 or 23) end
-    end
-
-    for _, obj in ipairs({Main, Header, Sidebar}) do
-        if obj then
-            local c = obj:FindFirstChildOfClass("UICorner")
-            if c then c.CornerRadius = UDim.new(0, th.Corner) end
-        end
-    end
-
-    -- Header logo box
-    if Header then
-        for _, ch in ipairs(Header:GetChildren()) do
-            if ch:IsA("Frame") and ch.Size.X.Offset == 34 then
-                ch.BackgroundColor3 = th.Accent
-                local c = ch:FindFirstChildOfClass("UICorner")
-                if c then c.CornerRadius = UDim.new(0, name == "Lego" and 4 or 10) end
-            end
-            if ch:IsA("TextLabel") then
-                if ch.Text:find("BAXTARA") then
-                    ch.TextColor3 = th.White
-                    ch.Font = name == "Lego" and Enum.Font.GothamBlack or Enum.Font.GothamBold
-                elseif ch.Text:find("CYBER") or ch.Text:find("PREMIUM") then
-                    ch.TextColor3 = th.Muted
-                    if name == "Ramadhan" then ch.Text = "RAMADHAN PREMIUM v5.5"
-                    elseif name == "Galaxy" then ch.Text = "GALAXY PREMIUM v5.5"
-                    elseif name == "Lego" then ch.Text = "BRICK BUILDER v5.5"
-                    else ch.Text = "CYBER PREMIUM v5.5" end
-                end
-            end
-        end
-    end
-
-    StyleTabButtons()
-    ClearThemeDecor()
-    ThemeDecor = Instance.new("Folder")
-    ThemeDecor.Name = "ThemeDecor"
-    ThemeDecor.Parent = Main
-
-    if name == "Galaxy" then
-        -- nebula top bar
-        local neb = Instance.new("Frame")
-        neb.Name = "Nebula"
-        neb.Size = UDim2.new(1, 0, 0, 4)
-        neb.Position = UDim2.fromOffset(0, 51)
-        neb.BorderSizePixel = 0
-        neb.BackgroundColor3 = Color3.fromRGB(160, 100, 255)
-        neb.ZIndex = 20
-        neb.Parent = ThemeDecor
-        local g = Instance.new("UIGradient")
-        g.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 20, 120)),
-            ColorSequenceKeypoint.new(0.35, Color3.fromRGB(180, 100, 255)),
-            ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80, 160, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 40, 180)),
-        })
-        g.Parent = neb
-        task.spawn(function()
-            while neb.Parent do
-                for i = 0, 1, 0.02 do
-                    if not neb.Parent then break end
-                    g.Offset = Vector2.new(i, 0)
-                    task.wait(0.03)
-                end
-            end
-        end)
-        -- stars
-        for i = 1, 18 do
-            local s = Instance.new("Frame")
-            s.Size = UDim2.fromOffset(math.random(2, 3), math.random(2, 3))
-            s.Position = UDim2.new(math.random() * 0.95, 4, 0.12 + math.random() * 0.8, 0)
-            s.BackgroundColor3 = Color3.fromRGB(230, 220, 255)
-            s.BackgroundTransparency = 0.2
-            s.BorderSizePixel = 0
-            s.ZIndex = 19
-            s.Parent = ThemeDecor
-            Instance.new("UICorner", s).CornerRadius = UDim.new(1, 0)
-            task.spawn(function()
-                while s.Parent do
-                    local tw = TweenService:Create(s, TweenInfo.new(0.8 + math.random(), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.85})
-                    tw:Play(); tw.Completed:Wait()
-                    local tw2 = TweenService:Create(s, TweenInfo.new(0.8 + math.random(), Enum.EasingStyle.Sine), {BackgroundTransparency = 0.15})
-                    tw2:Play(); tw2.Completed:Wait()
-                end
-            end)
-        end
-        -- vertical glow line
-        local vl = Instance.new("Frame")
-        vl.Size = UDim2.new(0, 2, 1, -70)
-        vl.Position = UDim2.fromOffset(132, 58)
-        vl.BackgroundColor3 = Color3.fromRGB(160, 100, 255)
-        vl.BackgroundTransparency = 0.45
-        vl.BorderSizePixel = 0
-        vl.ZIndex = 19
-        vl.Parent = ThemeDecor
-
-    elseif name == "Lego" then
-        -- stud bar
-        local studBar = Instance.new("Frame")
-        studBar.Size = UDim2.new(1, -16, 0, 16)
-        studBar.Position = UDim2.fromOffset(8, 52)
-        studBar.BackgroundColor3 = Color3.fromRGB(255, 205, 40)
-        studBar.BorderSizePixel = 0
-        studBar.ZIndex = 20
-        studBar.Parent = ThemeDecor
-        Instance.new("UICorner", studBar).CornerRadius = UDim.new(0, 2)
-        for i = 1, 16 do
-            local stud = Instance.new("Frame")
-            stud.Size = UDim2.fromOffset(11, 11)
-            stud.Position = UDim2.fromOffset(6 + (i - 1) * 16, 2)
-            stud.BackgroundColor3 = Color3.fromRGB(255, 225, 90)
-            stud.BorderSizePixel = 0
-            stud.ZIndex = 21
-            stud.Parent = studBar
-            Instance.new("UICorner", stud).CornerRadius = UDim.new(1, 0)
-            local stroke = Instance.new("UIStroke")
-            stroke.Color = Color3.fromRGB(200, 150, 20)
-            stroke.Thickness = 1
-            stroke.Parent = stud
-        end
-        -- brick side stripe
-        local stripe = Instance.new("Frame")
-        stripe.Size = UDim2.new(0, 8, 1, -75)
-        stripe.Position = UDim2.fromOffset(0, 70)
-        stripe.BackgroundColor3 = Color3.fromRGB(0, 130, 255)
-        stripe.BorderSizePixel = 0
-        stripe.ZIndex = 19
-        stripe.Parent = ThemeDecor
-        local red = Instance.new("Frame")
-        red.Size = UDim2.new(0, 8, 0, 40)
-        red.Position = UDim2.fromOffset(0, 70)
-        red.BackgroundColor3 = Color3.fromRGB(220, 50, 40)
-        red.BorderSizePixel = 0
-        red.ZIndex = 20
-        red.Parent = ThemeDecor
-        local grn = Instance.new("Frame")
-        grn.Size = UDim2.new(0, 8, 0, 40)
-        grn.Position = UDim2.fromOffset(0, 120)
-        grn.BackgroundColor3 = Color3.fromRGB(40, 180, 70)
-        grn.BorderSizePixel = 0
-        grn.ZIndex = 20
-        grn.Parent = ThemeDecor
-
-    elseif name == "Ramadhan" then
-        local gold = Instance.new("Frame")
-        gold.Size = UDim2.new(1, 0, 0, 4)
-        gold.Position = UDim2.fromOffset(0, 51)
-        gold.BackgroundColor3 = Color3.fromRGB(218, 175, 70)
-        gold.BorderSizePixel = 0
-        gold.ZIndex = 20
-        gold.Parent = ThemeDecor
-        local gg = Instance.new("UIGradient")
-        gg.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 80, 40)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(230, 190, 80)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 80, 40)),
-        })
-        gg.Parent = gold
-        -- lanterns
-        for i = 1, 7 do
-            local lan = Instance.new("Frame")
-            lan.Size = UDim2.fromOffset(8, 12)
-            lan.Position = UDim2.new(0.12 + (i - 1) * 0.11, 0, 0, 56)
-            lan.BackgroundColor3 = Color3.fromRGB(255, 200, 80)
-            lan.BorderSizePixel = 0
-            lan.ZIndex = 20
-            lan.Parent = ThemeDecor
-            Instance.new("UICorner", lan).CornerRadius = UDim.new(0, 3)
-            local glow = Instance.new("UIStroke")
-            glow.Color = Color3.fromRGB(255, 230, 120)
-            glow.Thickness = 1.5
-            glow.Transparency = 0.4
-            glow.Parent = lan
-            task.spawn(function()
-                while lan.Parent do
-                    TweenService:Create(glow, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.75}):Play()
-                    task.wait(1.2)
-                end
-            end)
-        end
-        local foot = Instance.new("TextLabel")
-        foot.Size = UDim2.new(1, -20, 0, 16)
-        foot.Position = UDim2.new(0, 10, 1, -20)
-        foot.BackgroundTransparency = 1
-        foot.Text = "☪  Ramadhan Mubarak  ·  Ketupat · Kurma · Berkah  ☪"
-        foot.TextColor3 = Color3.fromRGB(218, 175, 70)
-        foot.Font = Enum.Font.Gotham
-        foot.TextSize = 10
-        foot.ZIndex = 20
-        foot.Parent = ThemeDecor
-        -- crescent mark on sidebar
-        local cres = Instance.new("TextLabel")
-        cres.Size = UDim2.fromOffset(28, 28)
-        cres.Position = UDim2.fromOffset(48, 8)
-        cres.BackgroundTransparency = 1
-        cres.Text = "☪"
-        cres.TextColor3 = Color3.fromRGB(218, 175, 70)
-        cres.TextSize = 20
-        cres.Font = Enum.Font.GothamBold
-        cres.ZIndex = 21
-        cres.Parent = ThemeDecor
-
-    else -- Modern
-        local bar = Instance.new("Frame")
-        bar.Size = UDim2.new(1, 0, 0, 3)
-        bar.Position = UDim2.fromOffset(0, 51)
-        bar.BackgroundColor3 = th.Accent
-        bar.BorderSizePixel = 0
-        bar.ZIndex = 20
-        bar.Parent = ThemeDecor
-        local mg = Instance.new("UIGradient")
-        mg.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, th.Accent),
-            ColorSequenceKeypoint.new(0.5, th.Accent2),
-            ColorSequenceKeypoint.new(1, th.Accent),
-        })
-        mg.Parent = bar
-        task.spawn(function()
-            while bar.Parent do
-                for i = -1, 1, 0.04 do
-                    if not bar.Parent then break end
-                    mg.Offset = Vector2.new(i, 0)
-                    task.wait(0.02)
-                end
-            end
-        end)
-        local edge = Instance.new("Frame")
-        edge.Size = UDim2.new(0, 2, 1, -70)
-        edge.Position = UDim2.fromOffset(132, 58)
-        edge.BackgroundColor3 = th.Accent
-        edge.BackgroundTransparency = 0.55
-        edge.BorderSizePixel = 0
-        edge.ZIndex = 19
-        edge.Parent = ThemeDecor
-    end
-
-    -- rebuild current page so cards/toggles use new T
-    if CurrentTab and CurrentTab ~= "" and PageBuilders[CurrentTab] then
-        pcall(PageBuilders[CurrentTab])
-    end
-    StyleTabButtons()
-    Notify("THEME", name .. " — layout & style applied")
-end
-
-
-local ColorPresets = {
-    Cyan   = {vis=Color3.fromRGB(0,230,200), hid=Color3.fromRGB(255,85,105), pri=Color3.fromRGB(255,200,50), tr=Color3.fromRGB(0,230,200), fov=Color3.fromRGB(0,230,200), box=Color3.fromRGB(0,230,200)},
-    Purple = {vis=Color3.fromRGB(180,80,255), hid=Color3.fromRGB(255,80,120), pri=Color3.fromRGB(255,200,50), tr=Color3.fromRGB(200,100,255), fov=Color3.fromRGB(170,70,255), box=Color3.fromRGB(180,80,255)},
-    Green  = {vis=Color3.fromRGB(0,255,140), hid=Color3.fromRGB(255,70,70), pri=Color3.fromRGB(255,200,0), tr=Color3.fromRGB(0,255,180), fov=Color3.fromRGB(0,255,160), box=Color3.fromRGB(0,255,140)},
-    Red    = {vis=Color3.fromRGB(255,60,60), hid=Color3.fromRGB(180,40,40), pri=Color3.fromRGB(255,200,0), tr=Color3.fromRGB(255,100,100), fov=Color3.fromRGB(255,80,80), box=Color3.fromRGB(255,60,60)},
+local State = {
+    Theme = "Galaxy",
+    SelectedPage = "OVERVIEW",
+    Ambient = true,
+    StarParticles = true,
+    OrbitMotion = true,
+    KetupatMotion = true,
+    ReduceMotion = false,
+    CompactCards = false,
+    Glow = 0.72,
+    AnimationSpeed = 1.0,
+    PanelVisible = true,
+    Destroyed = false,
 }
-local function ApplyColor(name)
-    local p = ColorPresets[name] or ColorPresets.Cyan
-    B.Settings.ESP.ColorName = name
-    B.Settings.ESP.VisibleColor=p.vis; B.Settings.ESP.HiddenColor=p.hid
-    B.Settings.ESP.PriorityColor=p.pri; B.Settings.ESP.TracerColor=p.tr
-    B.Settings.ESP.FOVColor=p.fov; B.Settings.ESP.BoxColor=p.box
-    if B.Drawings.FOV then B.Drawings.FOV.Color = p.fov end
-end
 
--- ===================== GUI =====================
+local Theme = Themes[State.Theme]
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BAXTARA_X_CHEAT"
+ScreenGui.Name = GUI_NAME
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 50
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.DisplayOrder = 999
-ScreenGui.Parent = CoreGui
+ScreenGui.Parent = PlayerGui
 
-local function New(class, props, parent)
-    local o = Instance.new(class)
-    for k,v in pairs(props or {}) do o[k]=v end
-    o.Parent = parent
-    return o
-end
-local function Round(o, r) New("UICorner", {CornerRadius=UDim.new(0,r or 10)}, o) end
-local function Stroke(o, col, tr)
-    return New("UIStroke", {Color=col or T.Accent, Thickness=1, Transparency=tr or 0.4}, o)
+local Main, FloatingButton, ToastLayer
+local Content, PageTitle, PageSubtitle
+local FpsValue, PlayerValue, SessionValue
+local OrbitNodes = {}
+local StarNodes = {}
+local HeaderKetupatNodes = {}
+local PageKetupatNodes = {}
+local ActiveSlider = nil
+local renderUI, renderPage, bindHeaderDrag
+local Dragging = false
+local DragInputPosition = nil
+local DragStartPosition = nil
+local LastStatsRefresh = 0
+local FrameCounter = 0
+local FPS = 0
+local SessionStart = os.clock()
+local IntroPlayed = false
+
+local function make(className, properties, parent)
+    local object = Instance.new(className)
+    for key, value in pairs(properties or {}) do
+        object[key] = value
+    end
+    object.Parent = parent
+    return object
 end
 
--- KEY
-local KeyFrame = New("Frame", {Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.fromRGB(6,8,14), BorderSizePixel=0, ZIndex=100}, ScreenGui)
-local KeyCard = New("Frame", {Size=UDim2.fromOffset(320,320), Position=UDim2.new(0.5,-160,0.5,-160), BackgroundColor3=T.Card, BorderSizePixel=0, ZIndex=110}, KeyFrame)
-Round(KeyCard, 14); Stroke(KeyCard, T.Accent, 0.3)
-New("TextLabel", {Size=UDim2.new(1,-20,0,28), Position=UDim2.fromOffset(10,16), BackgroundTransparency=1, Text="BAXTARA X CHEAT", TextColor3=T.Accent, Font=Enum.Font.GothamBlack, TextSize=18, ZIndex=111}, KeyCard)
-New("TextLabel", {Size=UDim2.new(1,-20,0,14), Position=UDim2.fromOffset(10,44), BackgroundTransparency=1, Text="SECURE ACCESS TERMINAL", TextColor3=T.Muted, Font=Enum.Font.Code, TextSize=10, ZIndex=111}, KeyCard)
-local InputH = New("Frame", {Size=UDim2.new(1,-40,0,36), Position=UDim2.fromOffset(20,80), BackgroundColor3=T.Element, BorderSizePixel=0, ZIndex=111}, KeyCard)
-Round(InputH, 8)
-local KeyBox = New("TextBox", {Size=UDim2.new(1,-12,1,0), Position=UDim2.fromOffset(6,0), BackgroundTransparency=1, PlaceholderText="ENTER ACCESS KEY", PlaceholderColor3=T.Muted, Text="", TextColor3=T.White, Font=Enum.Font.Code, TextSize=13, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=112}, InputH)
-local StatusLbl = New("TextLabel", {Size=UDim2.new(1,-40,0,16), Position=UDim2.fromOffset(20,122), BackgroundTransparency=1, Text="", TextColor3=T.Red, Font=Enum.Font.Code, TextSize=11, ZIndex=111}, KeyCard)
-local function KBtn(text, y, col, cb)
-    local b = New("TextButton", {Size=UDim2.new(1,-40,0,34), Position=UDim2.fromOffset(20,y), BackgroundColor3=col, Text=text, TextColor3=T.White, Font=Enum.Font.GothamBold, TextSize=12, ZIndex=111, AutoButtonColor=false}, KeyCard)
-    Round(b, 8)
-    b.MouseButton1Click:Connect(function() if cb then cb() end end)
-    return b
-end
-local VerifyBtn = KBtn("VERIFY KEY", 150, Color3.fromRGB(0,140,120))
-KBtn("JOIN WHATSAPP", 192, Color3.fromRGB(20,90,50), function()
-    pcall(function() if setclipboard then setclipboard(WA_URL) end end)
-end)
-KBtn("COPY KEY INFO", 234, T.Element, function()
-    pcall(function() if setclipboard then setclipboard("Key: BAXTARA X CHEAT") end end)
-    StatusLbl.TextColor3 = T.Accent; StatusLbl.Text = "Copied"
-end)
-New("TextLabel", {Size=UDim2.new(1,-20,0,14), Position=UDim2.fromOffset(10,280), BackgroundTransparency=1, Text="Key: BAXTARA X CHEAT", TextColor3=T.Muted, Font=Enum.Font.Code, TextSize=10, ZIndex=111}, KeyCard)
+ToastLayer = make("Frame", {
+    Name = "ToastLayer",
+    Size = UDim2.fromScale(1, 1),
+    BackgroundTransparency = 1,
+    ZIndex = 100,
+}, ScreenGui)
 
--- LOADING
-local LoadFrame = New("Frame", {Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.fromRGB(5,8,12), BorderSizePixel=0, Visible=false, ZIndex=90}, ScreenGui)
-for i=1,12 do
-    local t = New("TextLabel", {Size=UDim2.fromOffset(120,14), Position=UDim2.new(math.random(),0,math.random(),0), BackgroundTransparency=1, Text=({"BAXTARA","X CHEAT","EXECUTE","DOMINATE"})[math.random(1,4)], TextColor3=T.Accent, TextTransparency=0.45, Font=Enum.Font.GothamBlack, TextSize=11, ZIndex=91}, LoadFrame)
-    task.spawn(function()
-        while t.Parent do
-            TweenService:Create(t, TweenInfo.new(4, Enum.EasingStyle.Sine), {Position=UDim2.new(math.random(),0,math.random(),0)}):Play()
-            task.wait(4)
+local function corner(parent, radius)
+    return make("UICorner", { CornerRadius = UDim.new(0, radius or Theme.Radius) }, parent)
+end
+
+local function outline(parent, color, thickness, transparency)
+    return make("UIStroke", {
+        Color = color or Theme.Border,
+        Thickness = thickness or 1,
+        Transparency = transparency == nil and 0.35 or transparency,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, parent)
+end
+
+local function addGradient(parent, first, second, rotation)
+    return make("UIGradient", {
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, first),
+            ColorSequenceKeypoint.new(1, second),
+        }),
+        Rotation = rotation or 0,
+    }, parent)
+end
+
+local function text(parent, value, size, color, font, position, dimensions, alignment)
+    return make("TextLabel", {
+        BackgroundTransparency = 1,
+        Text = value or "",
+        TextColor3 = color or Theme.Text,
+        TextSize = size or 13,
+        Font = font or Enum.Font.Gotham,
+        TextXAlignment = alignment or Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        TextWrapped = true,
+        Position = position or UDim2.new(),
+        Size = dimensions or UDim2.new(1, 0, 0, 22),
+        ZIndex = (parent.ZIndex or 1) + 1,
+    }, parent)
+end
+
+local function tween(object, duration, properties, style, direction)
+    if not object or not object.Parent or State.ReduceMotion then
+        if object and object.Parent then
+            for property, value in pairs(properties) do
+                object[property] = value
+            end
+        end
+        return nil
+    end
+    local animation = TweenService:Create(object, TweenInfo.new(
+        duration or 0.2,
+        style or Enum.EasingStyle.Quart,
+        direction or Enum.EasingDirection.Out
+    ), properties)
+    animation:Play()
+    return animation
+end
+
+local function showNotice(message, tint)
+    if State.Destroyed or not ToastLayer then return end
+    local toast = make("Frame", {
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, 24, 0, 18),
+        Size = UDim2.fromOffset(250, 50),
+        BackgroundColor3 = Theme.Card,
+        BorderSizePixel = 0,
+        ZIndex = 100,
+    }, ToastLayer)
+    corner(toast, Theme.Style == "Lego" and 5 or 13)
+    outline(toast, tint or Theme.Accent, Theme.Style == "Lego" and 2 or 1, 0.18)
+    local stripe = make("Frame", {
+        Position = UDim2.fromOffset(0, 8),
+        Size = UDim2.new(0, 3, 1, -16),
+        BackgroundColor3 = tint or Theme.Accent,
+        BorderSizePixel = 0,
+        ZIndex = 101,
+    }, toast)
+    corner(stripe, 4)
+    text(toast, "BAXTARA NOTICE", 9, tint or Theme.Accent, Enum.Font.GothamBold,
+        UDim2.fromOffset(13, 5), UDim2.new(1, -22, 0, 14))
+    text(toast, message, 11, Theme.Text, Enum.Font.GothamMedium,
+        UDim2.fromOffset(13, 20), UDim2.new(1, -22, 0, 22))
+    tween(toast, 0.28, { Position = UDim2.new(1, -14, 0, 18) }, Enum.EasingStyle.Back)
+    task.delay(2.2, function()
+        if toast and toast.Parent then
+            tween(toast, 0.18, { Position = UDim2.new(1, 24, 0, 18) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            task.delay(0.22, function()
+                if toast and toast.Parent then toast:Destroy() end
+            end)
         end
     end)
 end
-New("TextLabel", {Size=UDim2.new(1,0,0,28), Position=UDim2.new(0,0,0.42,0), BackgroundTransparency=1, Text="BAXTARA X CHEAT", TextColor3=T.Accent, Font=Enum.Font.GothamBlack, TextSize=22, ZIndex=95}, LoadFrame)
-local LoadBarBG = New("Frame", {Size=UDim2.fromOffset(200,4), Position=UDim2.new(0.5,-100,0.52,0), BackgroundColor3=T.Off, BorderSizePixel=0, ZIndex=95}, LoadFrame)
-Round(LoadBarBG, 4)
-local LoadBar = New("Frame", {Size=UDim2.new(0,0,1,0), BackgroundColor3=T.Accent, BorderSizePixel=0, ZIndex=96}, LoadBarBG)
-Round(LoadBar, 4)
-local LoadPct = New("TextLabel", {Size=UDim2.new(1,0,0,14), Position=UDim2.new(0,0,0.55,0), BackgroundTransparency=1, Text="0%", TextColor3=T.Muted, Font=Enum.Font.Code, TextSize=11, ZIndex=95}, LoadFrame)
 
--- MAIN PANEL (Cyber style)
-local Main = New("Frame", {Name="Main", Size=UDim2.fromOffset(560,380), Position=UDim2.new(0.5,-280,0.5,-190), BackgroundColor3=T.Background, BorderSizePixel=0, Visible=false, ClipsDescendants=true, ZIndex=10}, ScreenGui)
-Round(Main, 16)
-local MainBorder = Stroke(Main, T.Accent, 0.35)
-local MainScale = New("UIScale", {Scale=1}, Main)
-B.Main, B.MainBorder, B.MainScale = Main, MainBorder, MainScale
-
-local Header = New("Frame", {Size=UDim2.new(1,0,0,52), BackgroundColor3=T.Sidebar, BorderSizePixel=0, ZIndex=12}, Main)
-Round(Header, 16)
-New("Frame", {Position=UDim2.new(0,0,1,-12), Size=UDim2.new(1,0,0,12), BackgroundColor3=T.Sidebar, BorderSizePixel=0, ZIndex=12}, Header)
-
-local LogoBox = New("Frame", {Position=UDim2.fromOffset(12,8), Size=UDim2.fromOffset(34,34), BackgroundColor3=T.Accent, ZIndex=13}, Header)
-Round(LogoBox, 10)
-New("TextLabel", {Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Text="B", TextColor3=T.Background, Font=Enum.Font.GothamBlack, TextSize=20, ZIndex=14}, LogoBox)
-
-New("TextLabel", {Position=UDim2.fromOffset(54,8), Size=UDim2.fromOffset(220,20), BackgroundTransparency=1, Text="BAXTARA X CHEAT", TextColor3=T.White, Font=Enum.Font.GothamBold, TextSize=14, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, Header)
-New("TextLabel", {Position=UDim2.fromOffset(54,28), Size=UDim2.fromOffset(200,14), BackgroundTransparency=1, Text="CYBER PREMIUM v5.5", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, Header)
-
-local function HBtn(text, x, col)
-    local b = New("TextButton", {Position=UDim2.new(1,x,0,12), Size=UDim2.fromOffset(28,28), BackgroundColor3=T.Element, Text=text, TextColor3=col, Font=Enum.Font.GothamBold, TextSize=16, AutoButtonColor=false, ZIndex=13}, Header)
-    Round(b, 8)
-    return b
+local function addPageHeading(parent, heading, description)
+    text(parent, heading, 19, Theme.Text, Enum.Font.GothamBold,
+        UDim2.fromOffset(4, 0), UDim2.new(1, -8, 0, 28))
+    text(parent, description, 11, Theme.Muted, Enum.Font.Gotham,
+        UDim2.fromOffset(4, 28), UDim2.new(1, -8, 0, 30))
+    make("Frame", {
+        Position = UDim2.fromOffset(4, 62),
+        Size = UDim2.new(1, -8, 0, 1),
+        BackgroundColor3 = Theme.Border,
+        BackgroundTransparency = 0.55,
+        BorderSizePixel = 0,
+    }, parent)
 end
-local MinBtn = HBtn("−", -72, T.Accent)
-local CloseBtn = HBtn("×", -36, T.Red)
 
--- Sidebar
-local Sidebar = New("Frame", {Position=UDim2.fromOffset(10,60), Size=UDim2.new(0,120,1,-70), BackgroundColor3=T.Sidebar, BorderSizePixel=0, ZIndex=11}, Main)
-Round(Sidebar, 12)
-B.Header, B.Sidebar = Header, Sidebar
-New("TextLabel", {Position=UDim2.fromOffset(10,8), Size=UDim2.new(1,-16,0,14), BackgroundTransparency=1, Text="MAIN MENU", TextColor3=T.Muted, Font=Enum.Font.GothamBold, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=12}, Sidebar)
+local function addCard(parent, titleText, subText, height, layoutOrder)
+    local card = make("Frame", {
+        Size = UDim2.new(1, -8, 0, height or 110),
+        BackgroundColor3 = Theme.Card,
+        BorderSizePixel = 0,
+        LayoutOrder = layoutOrder or 1,
+        ZIndex = 4,
+    }, parent)
+    corner(card, Theme.Style == "Lego" and 5 or Theme.Radius)
+    outline(card, Theme.Border, Theme.Style == "Lego" and 2 or 1, Theme.Style == "Modern" and 0.72 or 0.42)
+    if Theme.Style == "Lego" then
+        local cap = make("Frame", {
+            Position = UDim2.fromOffset(9, 0),
+            Size = UDim2.new(1, -18, 0, 5),
+            BackgroundColor3 = Theme.Accent,
+            BorderSizePixel = 0,
+            ZIndex = 5,
+        }, card)
+        corner(cap, 3)
+    elseif Theme.Style == "Eid" then
+        make("Frame", {
+            Position = UDim2.fromOffset(12, 11),
+            Size = UDim2.fromOffset(3, math.max(20, (height or 110) - 22)),
+            BackgroundColor3 = Theme.Accent,
+            BorderSizePixel = 0,
+            ZIndex = 5,
+        }, card)
+    elseif Theme.Style == "Modern" then
+        make("Frame", {
+            Position = UDim2.fromOffset(15, 14),
+            Size = UDim2.fromOffset(28, 3),
+            BackgroundColor3 = Theme.Accent,
+            BorderSizePixel = 0,
+            ZIndex = 5,
+        }, card)
+    end
+    local titleY = Theme.Style == "Modern" and 25 or 12
+    local subY = titleY + 19
+    text(card, titleText or "SECTION", 11, Theme.Accent, Enum.Font.GothamBold,
+        UDim2.fromOffset(15, titleY), UDim2.new(1, -30, 0, 17))
+    if subText and subText ~= "" then
+        text(card, subText, 9, Theme.Muted, Enum.Font.Gotham,
+            UDim2.fromOffset(15, subY), UDim2.new(1, -30, 0, 16))
+    end
+    return card
+end
 
-local TabHolder = New("Frame", {Position=UDim2.fromOffset(6,28), Size=UDim2.new(1,-12,0,260), BackgroundTransparency=1, ZIndex=12}, Sidebar)
-New("UIListLayout", {Padding=UDim.new(0,5), SortOrder=Enum.SortOrder.LayoutOrder}, TabHolder)
-New("TextLabel", {Position=UDim2.new(0,10,1,-28), Size=UDim2.new(1,-16,0,16), BackgroundTransparency=1, Text="BAXTARA v5.5", TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=12}, Sidebar)
+local function addButton(parent, titleText, position, size, callback, variant)
+    variant = variant or "primary"
+    local style = Theme.Style
+    local buttonHost = make("Frame", {
+        Position = position,
+        Size = size,
+        BackgroundTransparency = 1,
+        ZIndex = 8,
+    }, parent)
 
-local Content = New("ScrollingFrame", {
-    Position=UDim2.fromOffset(140,60), Size=UDim2.new(1,-150,1,-70),
-    BackgroundTransparency=1, BorderSizePixel=0, ScrollBarThickness=3,
-    ScrollBarImageColor3=T.Accent, CanvasSize=UDim2.new(), AutomaticCanvasSize=Enum.AutomaticSize.Y, ZIndex=11
-}, Main)
-local ContentLayout = New("UIListLayout", {Padding=UDim.new(0,8), SortOrder=Enum.SortOrder.LayoutOrder}, Content)
-New("UIPadding", {PaddingBottom=UDim.new(0,6), PaddingRight=UDim.new(0,4)}, Content)
+    if style == "Lego" then
+        local shadow = make("Frame", {
+            Position = UDim2.fromOffset(0, 4),
+            Size = UDim2.new(1, 0, 1, -2),
+            BackgroundColor3 = Color3.fromRGB(24, 33, 48),
+            BorderSizePixel = 0,
+            ZIndex = 8,
+        }, buttonHost)
+        corner(shadow, 5)
+    end
 
-local SideNames = {"Home","ESP","Aim","Brutal","LocalCfg","Settings"}
-local TabButtons, CurrentTab = {}, ""
-local PageBuilders = {}
+    local face = make("TextButton", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = variant == "secondary" and Theme.Element or Theme.Raised,
+        Text = "",
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+        ZIndex = 9,
+    }, buttonHost)
+    corner(face, style == "Lego" and 5 or (style == "Galaxy" and 18 or (style == "Modern" and 10 or 13)))
+    outline(face, variant == "danger" and Theme.Danger or Theme.Border,
+        style == "Lego" and 2 or 1, style == "Modern" and 0.72 or 0.30)
 
-local function ClearContent()
-    for _, ch in ipairs(Content:GetChildren()) do
-        if not ch:IsA("UIListLayout") and not ch:IsA("UIPadding") then ch:Destroy() end
+    if style == "Galaxy" then
+        addGradient(face, Theme.Raised, Theme.Surface, 25)
+        local dot = make("Frame", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -12, 0.5, 0),
+            Size = UDim2.fromOffset(8, 8),
+            BackgroundColor3 = Theme.Accent2,
+            BorderSizePixel = 0,
+            ZIndex = 11,
+        }, face)
+        corner(dot, 99)
+    elseif style == "Lego" then
+        local stud = make("Frame", {
+            Position = UDim2.fromOffset(9, 5),
+            Size = UDim2.fromOffset(8, 6),
+            BackgroundColor3 = Theme.Accent,
+            BorderSizePixel = 0,
+            ZIndex = 11,
+        }, face)
+        corner(stud, 3)
+    elseif style == "Modern" then
+        make("Frame", {
+            Position = UDim2.fromOffset(0, 8),
+            Size = UDim2.new(0, 3, 1, -16),
+            BackgroundColor3 = Theme.Accent,
+            BorderSizePixel = 0,
+            ZIndex = 11,
+        }, face)
+    elseif style == "Eid" then
+        text(face, "◆", 9, Theme.Accent, Enum.Font.GothamBold,
+            UDim2.new(1, -27, 0, 0), UDim2.fromOffset(18, size.Y.Offset), Enum.TextXAlignment.Center)
+    end
+
+    local leftPad = style == "Modern" and 17 or (style == "Lego" and 22 or 13)
+    text(face, titleText, style == "Lego" and 11 or 10,
+        variant == "danger" and Theme.Danger or Theme.Text,
+        style == "Lego" and Enum.Font.GothamBlack or Enum.Font.GothamSemibold,
+        UDim2.fromOffset(leftPad, 0), UDim2.new(1, -leftPad - 34, 1, 0))
+
+    face.Activated:Connect(function()
+        if style == "Lego" then
+            tween(face, 0.07, { Position = UDim2.fromOffset(0, 3) }, Enum.EasingStyle.Quad)
+            task.delay(0.09, function()
+                if face and face.Parent then tween(face, 0.12, { Position = UDim2.new() }, Enum.EasingStyle.Back) end
+            end)
+        else
+            tween(face, 0.08, { BackgroundColor3 = Theme.Accent }, Enum.EasingStyle.Quad)
+            task.delay(0.10, function()
+                if face and face.Parent then
+                    tween(face, 0.18, { BackgroundColor3 = variant == "secondary" and Theme.Element or Theme.Raised })
+                end
+            end)
+        end
+        if callback then callback() end
+    end)
+    return buttonHost
+end
+
+local function addToggle(parent, titleText, description, key, y)
+    local rowHeight = State.CompactCards and 45 or 55
+    local row = make("Frame", {
+        Position = UDim2.fromOffset(12, y),
+        Size = UDim2.new(1, -24, 0, rowHeight),
+        BackgroundColor3 = Theme.Raised,
+        BorderSizePixel = 0,
+        ZIndex = 7,
+    }, parent)
+    corner(row, Theme.Style == "Lego" and 4 or 10)
+    text(row, titleText, 10, Theme.Text, Enum.Font.GothamSemibold,
+        UDim2.fromOffset(10, 5), UDim2.new(1, -75, 0, 16))
+    if description then
+        text(row, description, 8, Theme.Muted, Enum.Font.Gotham,
+            UDim2.fromOffset(10, 22), UDim2.new(1, -78, 0, 14))
+    end
+    local track = make("Frame", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -10, 0.5, 0),
+        Size = UDim2.fromOffset(42, 22),
+        BackgroundColor3 = State[key] and Theme.Accent or Theme.Off,
+        BorderSizePixel = 0,
+        ZIndex = 9,
+    }, row)
+    corner(track, Theme.Style == "Lego" and 4 or 15)
+    local knob = make("Frame", {
+        Position = State[key] and UDim2.new(1, -19, 0.5, -7) or UDim2.new(0, 5, 0.5, -7),
+        Size = UDim2.fromOffset(14, 14),
+        BackgroundColor3 = Theme.Text,
+        BorderSizePixel = 0,
+        ZIndex = 10,
+    }, track)
+    corner(knob, Theme.Style == "Lego" and 3 or 99)
+    local hit = make("TextButton", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Text = "",
+        ZIndex = 11,
+    }, track)
+    hit.Activated:Connect(function()
+        State[key] = not State[key]
+        tween(track, 0.16, { BackgroundColor3 = State[key] and Theme.Accent or Theme.Off })
+        tween(knob, 0.18, {
+            Position = State[key] and UDim2.new(1, -19, 0.5, -7) or UDim2.new(0, 5, 0.5, -7),
+        }, Enum.EasingStyle.Back)
+        showNotice(titleText .. (State[key] and " ON" or " OFF"))
+        if key == "CompactCards" then
+            task.defer(function() if not State.Destroyed then renderUI() end end)
+        end
+    end)
+    return row
+end
+
+local function addSlider(parent, titleText, description, key, minimum, maximum, y)
+    local row = make("Frame", {
+        Position = UDim2.fromOffset(12, y),
+        Size = UDim2.new(1, -24, 0, 67),
+        BackgroundColor3 = Theme.Raised,
+        BorderSizePixel = 0,
+        ZIndex = 7,
+    }, parent)
+    corner(row, Theme.Style == "Lego" and 4 or 10)
+    text(row, titleText, 10, Theme.Text, Enum.Font.GothamSemibold,
+        UDim2.fromOffset(10, 5), UDim2.new(0.68, 0, 0, 16))
+    local valueLabel = text(row, string.format("%.2f", State[key]), 9, Theme.Accent,
+        Enum.Font.GothamBold, UDim2.new(0.70, 0, 0, 5), UDim2.new(0.27, -8, 0, 16), Enum.TextXAlignment.Right)
+    text(row, description or "", 8, Theme.Muted, Enum.Font.Gotham,
+        UDim2.fromOffset(10, 22), UDim2.new(1, -20, 0, 12))
+    local bar = make("Frame", {
+        Position = UDim2.new(0, 10, 0, 46),
+        Size = UDim2.new(1, -20, 0, 6),
+        BackgroundColor3 = Theme.Off,
+        BorderSizePixel = 0,
+        ZIndex = 8,
+    }, row)
+    corner(bar, 6)
+    local ratio = math.clamp((State[key] - minimum) / (maximum - minimum), 0, 1)
+    local fill = make("Frame", {
+        Size = UDim2.new(ratio, 0, 1, 0),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+        ZIndex = 9,
+    }, bar)
+    corner(fill, 6)
+    local function update(x)
+        local relative = math.clamp((x - bar.AbsolutePosition.X) / math.max(bar.AbsoluteSize.X, 1), 0, 1)
+        local value = minimum + (maximum - minimum) * relative
+        State[key] = value
+        fill.Size = UDim2.new(relative, 0, 1, 0)
+        valueLabel.Text = string.format("%.2f", value)
+    end
+    local hit = make("TextButton", {
+        Size = UDim2.new(1, 0, 0, 24),
+        Position = UDim2.new(0, 0, 0, -9),
+        BackgroundTransparency = 1,
+        Text = "",
+        ZIndex = 10,
+    }, bar)
+    hit.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            ActiveSlider = { Bar = bar, Update = update }
+            update(input.Position.X)
+        end
+    end)
+    return row
+end
+
+local function clearContent()
+    table.clear(OrbitNodes)
+    table.clear(PageKetupatNodes)
+    for _, child in ipairs(Content:GetChildren()) do
+        if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+            child:Destroy()
+        end
     end
     Content.CanvasPosition = Vector2.zero
 end
 
-local function Card(title, sub, height)
-    local c = New("Frame", {Size=UDim2.new(1,-4,0,height), BackgroundColor3=T.Card, BorderSizePixel=0, ZIndex=12}, Content)
-    local corner = (T.Corner or 12) - 2
-    if T.Name == "Lego" then corner = 4 end
-    Round(c, corner)
-    local st = Stroke(c, T.Border or T.Accent, T.Name == "Lego" and 0.15 or 0.35)
-    if st then st.Thickness = T.Name == "Lego" and 2 or 1 end
-    New("TextLabel", {Position=UDim2.fromOffset(12,8), Size=UDim2.new(1,-20,0,16), BackgroundTransparency=1, Text=title, TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, c)
-    if sub then
-        New("TextLabel", {Position=UDim2.fromOffset(12,24), Size=UDim2.new(1,-20,0,12), BackgroundTransparency=1, Text=sub, TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, c)
-    end
-    return c
+local function createListContent()
+    local layout = make("UIListLayout", {
+        Padding = UDim.new(0, State.CompactCards and 7 or 11),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, Content)
+    make("UIPadding", {
+        PaddingTop = UDim.new(0, 4),
+        PaddingBottom = UDim.new(0, 12),
+        PaddingLeft = UDim.new(0, 3),
+        PaddingRight = UDim.new(0, 3),
+    }, Content)
+    return layout
 end
 
-local function Toggle(card, y, title, sub, default, cb)
-    local row = New("Frame", {Position=UDim2.fromOffset(10,y), Size=UDim2.new(1,-20,0,36), BackgroundTransparency=1, ZIndex=13}, card)
-    New("TextLabel", {Size=UDim2.new(1,-54,0,14), BackgroundTransparency=1, Text=title, TextColor3=T.White, Font=Enum.Font.GothamMedium, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
-    if sub then
-        New("TextLabel", {Position=UDim2.fromOffset(0,15), Size=UDim2.new(1,-54,0,12), BackgroundTransparency=1, Text=sub, TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=8, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
-    end
-    local isLego = (T.Name == "Lego")
-    local swW, swH = isLego and 40 or 40, isLego and 22 or 20
-    local sw = New("Frame", {AnchorPoint=Vector2.new(1,0.5), Position=UDim2.new(1,0,0.5,0), Size=UDim2.fromOffset(swW, swH), BackgroundColor3=default and T.Accent or T.Off, ZIndex=14}, row)
-    Round(sw, isLego and 4 or 20)
-    if isLego then
-        local s = Instance.new("UIStroke")
-        s.Color = default and Color3.fromRGB(200, 150, 20) or Color3.fromRGB(80, 90, 110)
-        s.Thickness = 1.5
-        s.Parent = sw
-    end
-    local dotSize = isLego and 14 or 14
-    local dot = New("Frame", {Position=default and UDim2.new(1,-(dotSize+2),0.5,-dotSize/2) or UDim2.new(0,2,0.5,-dotSize/2), Size=UDim2.fromOffset(dotSize,dotSize), BackgroundColor3=T.White, ZIndex=15}, sw)
-    Round(dot, isLego and 3 or 20)
-    local state = default
-    local btn = New("TextButton", {Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Text="", ZIndex=16}, sw)
-    btn.MouseButton1Click:Connect(function()
-        state = not state
-        local onCol = T.Accent
-        local offCol = T.Off
-        TweenService:Create(sw, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundColor3=state and onCol or offCol}):Play()
-        TweenService:Create(dot, TweenInfo.new(0.15, Enum.EasingStyle.Back), {Position=state and UDim2.new(1,-(dotSize+2),0.5,-dotSize/2) or UDim2.new(0,2,0.5,-dotSize/2)}):Play()
-        -- click flash
-        local flash = New("Frame", {Size=UDim2.fromScale(1,1), BackgroundColor3=T.White, BackgroundTransparency=0.7, BorderSizePixel=0, ZIndex=17}, sw)
-        Round(flash, isLego and 4 or 20)
-        TweenService:Create(flash, TweenInfo.new(0.25), {BackgroundTransparency=1}):Play()
-        task.delay(0.3, function() if flash.Parent then flash:Destroy() end end)
-        if cb then cb(state) end
-    end)
+local function makeOrbitArt(parent, compact)
+    local art = make("Frame", {
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -18, 0.54, 0),
+        Size = UDim2.fromOffset(compact and 100 or 145, compact and 100 or 145),
+        ZIndex = 8,
+    }, parent)
+    local ringA = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(0.98, 0.48),
+        Rotation = -28,
+        BackgroundTransparency = 1,
+        ZIndex = 8,
+    }, art)
+    corner(ringA, 999)
+    outline(ringA, Theme.Accent2, 1.4, 0.20)
+    local ringB = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(0.76, 0.94),
+        Rotation = 48,
+        BackgroundTransparency = 1,
+        ZIndex = 8,
+    }, art)
+    corner(ringB, 999)
+    outline(ringB, Theme.Accent, 1.1, 0.28)
+    local core = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(compact and 34 or 48, compact and 34 or 48),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+        ZIndex = 10,
+    }, art)
+    corner(core, 999)
+    addGradient(core, Theme.Accent2, Theme.Accent, 40)
+    outline(core, Theme.Text, 1, 0.55)
+    make("Frame", {
+        Position = UDim2.new(0.18, 0, 0.22, 0),
+        Size = UDim2.new(0.38, 0, 0.14, 0),
+        BackgroundColor3 = Theme.Text,
+        BackgroundTransparency = 0.66,
+        BorderSizePixel = 0,
+        ZIndex = 11,
+    }, core)
+    local moon = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(8, 8),
+        BackgroundColor3 = Theme.Accent2,
+        BorderSizePixel = 0,
+        ZIndex = 12,
+    }, art)
+    corner(moon, 99)
+    table.insert(OrbitNodes, { Root = art, Planet = moon, Phase = 0.8, Radius = 0.46 })
+    return art
 end
 
-local function Slider(card, y, title, min, max, default, cb)
-    local row = New("Frame", {Position=UDim2.fromOffset(10,y), Size=UDim2.new(1,-20,0,42), BackgroundTransparency=1, ZIndex=13}, card)
-    New("TextLabel", {Size=UDim2.new(0.6,0,0,14), BackgroundTransparency=1, Text=title, TextColor3=T.White, Font=Enum.Font.GothamMedium, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
-    local valL = New("TextLabel", {Position=UDim2.new(0.6,0,0,0), Size=UDim2.new(0.4,0,0,14), BackgroundTransparency=1, Text=tostring(default), TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Right, ZIndex=14}, row)
-    local bar = New("Frame", {Position=UDim2.fromOffset(0,22), Size=UDim2.new(1,0,0,6), BackgroundColor3=T.Off, ZIndex=14}, row)
-    Round(bar, 6)
-    local fill = New("Frame", {Size=UDim2.new((default-min)/math.max(max-min,1),0,1,0), BackgroundColor3=T.Accent, ZIndex=15}, bar)
-    Round(fill, 6)
-    local dragging = false
-    local function upd(x)
-        local rel = math.clamp((x-bar.AbsolutePosition.X)/math.max(bar.AbsoluteSize.X,1),0,1)
-        local v = math.floor(min+(max-min)*rel+0.5)
-        fill.Size = UDim2.new(rel,0,1,0)
-        valL.Text = tostring(v)
-        if cb then cb(v) end
-    end
-    bar.InputBegan:Connect(function(i)
-        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=true; upd(i.Position.X) end
-    end)
-    bar.InputEnded:Connect(function(i)
-        if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then dragging=false end
-    end)
-    AddConn(UserInputService.InputChanged:Connect(function(i)
-        if dragging and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then upd(i.Position.X) end
-    end))
+local function makeKetupat(parent, position, size, collection)
+    local wrap = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = position,
+        Size = UDim2.fromOffset(size, size + 18),
+        ZIndex = 9,
+    }, parent)
+    local stringLine = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 0),
+        Size = UDim2.fromOffset(2, 12),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+        ZIndex = 9,
+    }, wrap)
+    local diamond = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0, size * 0.57),
+        Size = UDim2.fromOffset(size * 0.68, size * 0.68),
+        Rotation = 45,
+        BackgroundColor3 = Theme.Accent2,
+        BorderSizePixel = 0,
+        ZIndex = 10,
+    }, wrap)
+    corner(diamond, 4)
+    outline(diamond, Theme.Accent, 2, 0.10)
+    addGradient(diamond, Color3.fromRGB(113, 190, 111), Color3.fromRGB(28, 103, 68), 45)
+    local bandA = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.35),
+        Size = UDim2.new(1.18, 0, 0, 3),
+        Rotation = 0,
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+        ZIndex = 11,
+    }, diamond)
+    local bandB = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.65),
+        Size = UDim2.new(1.18, 0, 0, 3),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+        ZIndex = 11,
+    }, diamond)
+    local cross = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(0, 3, 1.12, 0),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+        ZIndex = 11,
+    }, diamond)
+    table.insert(collection or PageKetupatNodes, wrap)
+    return wrap
 end
 
-local function Action(card, y, title, cb)
-    local isLego = (T.Name == "Lego")
-    local isRam = (T.Name == "Ramadhan")
-    local isGal = (T.Name == "Galaxy")
-    local b = New("TextButton", {Position=UDim2.fromOffset(10,y), Size=UDim2.new(1,-20,0,32), BackgroundColor3=T.Element, Text="", AutoButtonColor=false, ZIndex=13}, card)
-    Round(b, isLego and 4 or (isGal and 10 or 8))
-    local st = Instance.new("UIStroke")
-    st.Color = T.Border or T.Accent
-    st.Thickness = isLego and 2 or 1
-    st.Transparency = isLego and 0.2 or 0.5
-    st.Parent = b
-    New("TextLabel", {Position=UDim2.fromOffset(12,0), Size=UDim2.new(1,-36,1,0), BackgroundTransparency=1, Text=title, TextColor3=T.White, Font=isLego and Enum.Font.GothamBlack or Enum.Font.GothamMedium, TextSize=isLego and 11 or 10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, b)
-    local arrow = New("TextLabel", {Position=UDim2.new(1,-26,0,0), Size=UDim2.fromOffset(20,32), BackgroundTransparency=1, Text=isRam and "✦" or (isLego and "▶" or "›"), TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=isLego and 12 or 16, ZIndex=14}, b)
-    b.MouseButton1Click:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.08), {BackgroundColor3=T.Accent}):Play()
-        task.delay(0.1, function()
-            if b.Parent then TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3=T.Element}):Play() end
-        end)
-        if cb then cb() end
-    end)
-    b.MouseEnter:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.12), {BackgroundColor3=Color3.new(
-            math.min(1, T.Element.R*1.3), math.min(1, T.Element.G*1.3), math.min(1, T.Element.B*1.3)
-        )}):Play()
-    end)
-    b.MouseLeave:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.12), {BackgroundColor3=T.Element}):Play()
-    end)
-end
+local function buildThemeDecor(header, panel, mobile)
+    OrbitNodes = {}
+    StarNodes = {}
+    HeaderKetupatNodes = {}
+    PageKetupatNodes = {}
 
-local function Notify(title, msg)
-    local box = New("Frame", {Position=UDim2.new(1,20,0,60), Size=UDim2.fromOffset(210,55), BackgroundColor3=T.Card, BorderSizePixel=0, ZIndex=50}, ScreenGui)
-    Round(box, 10); Stroke(box, T.Accent, 0.2)
-    New("TextLabel", {Position=UDim2.fromOffset(10,6), Size=UDim2.new(1,-16,0,16), BackgroundTransparency=1, Text=title, TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=51}, box)
-    New("TextLabel", {Position=UDim2.fromOffset(10,24), Size=UDim2.new(1,-16,0,20), BackgroundTransparency=1, Text=msg, TextColor3=T.White, Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=51}, box)
-    TweenService:Create(box, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Position=UDim2.new(1,-225,0,60)}):Play()
-    task.delay(2.4, function()
-        if box.Parent then
-            TweenService:Create(box, TweenInfo.new(0.2), {Position=UDim2.new(1,20,0,60)}):Play()
-            task.wait(0.25); box:Destroy()
+    if Theme.Style == "Galaxy" then
+        local strip = make("Frame", {
+            Position = UDim2.new(0, 0, 1, -3),
+            Size = UDim2.new(1, 0, 0, 3),
+            BackgroundColor3 = Theme.Accent,
+            BorderSizePixel = 0,
+            ZIndex = 15,
+        }, header)
+        addGradient(strip, Theme.Accent, Theme.Accent2, 0)
+        for index = 1, 18 do
+            local star = make("Frame", {
+                Position = UDim2.new(math.random(5, 95) / 100, 0, math.random(10, 90) / 100, 0),
+                Size = UDim2.fromOffset(math.random(2, 3), math.random(2, 3)),
+                BackgroundColor3 = Theme.Text,
+                BackgroundTransparency = math.random(15, 50) / 100,
+                BorderSizePixel = 0,
+                ZIndex = 2,
+            }, panel)
+            corner(star, 99)
+            table.insert(StarNodes, { Object = star, Phase = math.random() * 6.28 })
         end
+    elseif Theme.Style == "Lego" then
+        local studStrip = make("Frame", {
+            Position = UDim2.new(0, 14, 1, -13),
+            Size = UDim2.new(1, -28, 0, 10),
+            BackgroundColor3 = Color3.fromRGB(207, 52, 47),
+            BorderSizePixel = 0,
+            ZIndex = 15,
+        }, header)
+        corner(studStrip, 2)
+        local count = 12
+        for index = 1, count do
+            local stud = make("Frame", {
+                Position = UDim2.new((index - 1) / count, 4, 0, 1),
+                Size = UDim2.fromOffset(12, 8),
+                BackgroundColor3 = Color3.fromRGB(255, 213, 73),
+                BorderSizePixel = 0,
+                ZIndex = 16,
+            }, studStrip)
+            corner(stud, 3)
+            outline(stud, Color3.fromRGB(174, 127, 29), 1, 0.2)
+        end
+    elseif Theme.Style == "Eid" then
+        local goldLine = make("Frame", {
+            Position = UDim2.new(0, 0, 1, -3),
+            Size = UDim2.new(1, 0, 0, 3),
+            BackgroundColor3 = Theme.Accent,
+            BorderSizePixel = 0,
+            ZIndex = 15,
+        }, header)
+        addGradient(goldLine, Theme.Accent2, Theme.Accent, 0)
+        local crescent = text(header, "☾", 25, Theme.Accent, Enum.Font.GothamBold,
+            UDim2.new(1, -124, 0, 11), UDim2.fromOffset(35, 35), Enum.TextXAlignment.Center)
+        crescent.Name = "EidCrescent"
+        if not mobile then
+            makeKetupat(header, UDim2.new(1, -78, 0, -1), 28, HeaderKetupatNodes)
+            makeKetupat(header, UDim2.new(1, -43, 0, 3), 22, HeaderKetupatNodes)
+        end
+    else
+        local divider = make("Frame", {
+            Position = UDim2.new(0, 18, 1, -2),
+            Size = UDim2.new(1, -36, 0, 1),
+            BackgroundColor3 = Theme.Border,
+            BackgroundTransparency = 0.2,
+            BorderSizePixel = 0,
+            ZIndex = 15,
+        }, header)
+        addGradient(divider, Theme.Accent, Theme.Accent2, 0)
+    end
+end
+
+local PageNames = {
+    { Name = "OVERVIEW", Icon = "⌂", Description = "Workspace overview" },
+    { Name = "PROFILE", Icon = "◉", Description = "Player profile" },
+    { Name = "APPEARANCE", Icon = "◈", Description = "Four visual themes" },
+    { Name = "VISUAL LAB", Icon = "✦", Description = "Local interface effects" },
+    { Name = "PREFERENCES", Icon = "⚙", Description = "Panel preferences" },
+    { Name = "ABOUT", Icon = "i", Description = "Project information" },
+}
+
+local function createStatCard(parent, titleText, initialText, order)
+    local card = make("Frame", {
+        Size = UDim2.new(1/3, -8, 1, 0),
+        BackgroundColor3 = Theme.Raised,
+        BorderSizePixel = 0,
+        LayoutOrder = order,
+        ZIndex = 6,
+    }, parent)
+    corner(card, Theme.Style == "Lego" and 4 or 11)
+    outline(card, Theme.Border, 1, 0.62)
+    text(card, titleText, 8, Theme.Muted, Enum.Font.GothamBold,
+        UDim2.fromOffset(9, 8), UDim2.new(1, -14, 0, 14))
+    local value = text(card, initialText, 18, Theme.Text, Enum.Font.GothamBold,
+        UDim2.fromOffset(9, 25), UDim2.new(1, -14, 0, 25))
+    return value
+end
+
+local function pageOverview()
+    clearContent()
+    createListContent()
+    addPageHeading(Content, "COMMAND OVERVIEW", "A clean control room for your local BAXTARA interface.")
+
+    local hero = addCard(Content, "BAXTARA / FOUR WORLDS", "One interface. Four distinct visual identities.", 154, 2)
+    text(hero, "Choose a world. Shape the atmosphere.", 14, Theme.Text, Enum.Font.GothamBold,
+        UDim2.fromOffset(15, 58), UDim2.new(0.64, -12, 0, 25))
+    text(hero, "Galaxy orbit • LEGO brickwork • Modern studio • Idul Fitri serenity",
+        9, Theme.Muted, Enum.Font.Gotham, UDim2.fromOffset(15, 86), UDim2.new(0.64, -12, 0, 30))
+    if Theme.Style == "Galaxy" then
+        makeOrbitArt(hero, true)
+    elseif Theme.Style == "Lego" then
+        for index = 1, 5 do
+            local brick = make("Frame", {
+                Position = UDim2.fromOffset(175 + (index - 1) * 21, 99 - (index % 2) * 9),
+                Size = UDim2.fromOffset(25, 20),
+                BackgroundColor3 = ({Color3.fromRGB(224, 54, 48), Color3.fromRGB(255, 198, 40), Color3.fromRGB(38, 132, 232), Color3.fromRGB(52, 180, 103)})[(index - 1) % 4 + 1],
+                BorderSizePixel = 0,
+                ZIndex = 8,
+            }, hero)
+            corner(brick, 3)
+            outline(brick, Color3.fromRGB(255, 255, 255), 1, 0.72)
+            for studIndex = 1, 2 do
+                local stud = make("Frame", {
+                    Position = UDim2.fromOffset(4 + (studIndex - 1) * 11, -4),
+                    Size = UDim2.fromOffset(7, 6),
+                    BackgroundColor3 = brick.BackgroundColor3:Lerp(Color3.new(1, 1, 1), 0.28),
+                    BorderSizePixel = 0,
+                    ZIndex = 9,
+                }, brick)
+                corner(stud, 3)
+            end
+        end
+    elseif Theme.Style == "Eid" then
+        text(hero, "☾", 38, Theme.Accent, Enum.Font.GothamBold,
+            UDim2.new(1, -137, 0, 38), UDim2.fromOffset(48, 48), Enum.TextXAlignment.Center)
+        makeKetupat(hero, UDim2.new(1, -84, 0, 44), 35, PageKetupatNodes)
+    else
+        local badge = make("Frame", {
+            Position = UDim2.new(1, -122, 0, 48),
+            Size = UDim2.fromOffset(94, 58),
+            BackgroundColor3 = Theme.Surface,
+            BorderSizePixel = 0,
+            ZIndex = 8,
+        }, hero)
+        corner(badge, 12)
+        outline(badge, Theme.Border, 1, 0.4)
+        text(badge, "BX", 25, Theme.Accent, Enum.Font.GothamBold,
+            UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
+    end
+
+    local statRow = make("Frame", {
+        Size = UDim2.new(1, -8, 0, 72),
+        BackgroundTransparency = 1,
+        LayoutOrder = 3,
+        ZIndex = 5,
+    }, Content)
+    make("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        Padding = UDim.new(0, 9),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, statRow)
+    FpsValue = createStatCard(statRow, "CLIENT FPS", tostring(FPS), 1)
+    PlayerValue = createStatCard(statRow, "PLAYERS HERE", tostring(#Players:GetPlayers()), 2)
+    SessionValue = createStatCard(statRow, "SESSION", "00:00", 3)
+
+    local launch = addCard(Content, "QUICK ACCESS", "Jump directly to the parts of the interface you use most.", 112, 4)
+    addButton(launch, "CHANGE THEME", UDim2.fromOffset(12, 54), UDim2.new(0.48, -12, 0, 38), function()
+        State.SelectedPage = "APPEARANCE"
+        renderPage()
+    end, "primary")
+    addButton(launch, "VISUAL LAB", UDim2.new(0.52, 0, 0, 54), UDim2.new(0.48, -12, 0, 38), function()
+        State.SelectedPage = "VISUAL LAB"
+        renderPage()
+    end, "secondary")
+end
+
+local function themeTile(parent, name, titleText, description, position)
+    local palette = Themes[name]
+    local tile = make("TextButton", {
+        Position = position,
+        Size = UDim2.new(0.49, -6, 0, 90),
+        BackgroundColor3 = palette.Card,
+        Text = "",
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+        ZIndex = 8,
+    }, parent)
+    corner(tile, name == "Lego" and 5 or (name == "Galaxy" and 18 or (name == "Modern" and 10 or 14)))
+    outline(tile, palette.Border, name == "Lego" and 2 or 1, State.Theme == name and 0.05 or 0.56)
+    local swatch = make("Frame", {
+        Position = UDim2.fromOffset(10, 13),
+        Size = UDim2.fromOffset(40, 40),
+        BackgroundColor3 = palette.Accent,
+        BorderSizePixel = 0,
+        ZIndex = 9,
+    }, tile)
+    corner(swatch, name == "Galaxy" and 99 or (name == "Lego" and 5 or 11))
+    addGradient(swatch, palette.Accent, palette.Accent2, 35)
+    if name == "Lego" then
+        for i = 1, 2 do
+            local stud = make("Frame", {
+                Position = UDim2.fromOffset(6 + (i - 1) * 17, -4),
+                Size = UDim2.fromOffset(12, 8),
+                BackgroundColor3 = Color3.fromRGB(255, 224, 104),
+                BorderSizePixel = 0,
+                ZIndex = 10,
+            }, swatch)
+            corner(stud, 3)
+        end
+    elseif name == "Galaxy" then
+        outline(swatch, palette.Text, 1, 0.32)
+    elseif name == "Eid" then
+        text(swatch, "◆", 19, palette.Text, Enum.Font.GothamBold,
+            UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
+    else
+        make("Frame", {
+            Position = UDim2.fromOffset(0, 33),
+            Size = UDim2.new(1, 0, 0, 3),
+            BackgroundColor3 = palette.Accent2,
+            BorderSizePixel = 0,
+            ZIndex = 10,
+        }, swatch)
+    end
+    text(tile, titleText, 10, palette.Text, Enum.Font.GothamBold,
+        UDim2.fromOffset(60, 17), UDim2.new(1, -68, 0, 18))
+    text(tile, description, 8, palette.Muted, Enum.Font.Gotham,
+        UDim2.fromOffset(60, 38), UDim2.new(1, -68, 0, 30))
+    if State.Theme == name then
+        text(tile, "ACTIVE", 7, palette.Accent, Enum.Font.GothamBlack,
+            UDim2.fromOffset(60, 68), UDim2.new(1, -68, 0, 12))
+    end
+    tile.Activated:Connect(function()
+        State.Theme = name
+        Theme = Themes[name]
+        State.SelectedPage = "APPEARANCE"
+        renderUI()
+        showNotice(palette.Name .. " APPLIED", palette.Accent)
     end)
 end
 
--- PAGE: HOME
-PageBuilders.Home = function()
-    ClearContent()
-    local profile = Card("PLAYER PROFILE", "Welcome to cyber workspace", 150)
-    local av = New("ImageLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.fromOffset(64,64), BackgroundColor3=T.Element, BorderSizePixel=0, ZIndex=13}, profile)
-    Round(av, 14)
+local function pageAppearance()
+    clearContent()
+    createListContent()
+    addPageHeading(Content, "VISUAL WORLDS", "Every theme has its own geometry, navigation, materials and motion language.")
+    local card = addCard(Content, "SELECT A DESIGN LANGUAGE", "Switching themes rebuilds the interface without resetting your preferences.", 258, 2)
+    themeTile(card, "Galaxy", "GALAXY", "Orbital rings, planet nodes, nebula tones", UDim2.fromOffset(12, 59))
+    themeTile(card, "Lego", "LEGO", "Raised bricks, studs, modular blocks", UDim2.new(0.51, 0, 0, 59))
+    themeTile(card, "Modern", "MODERN", "Editorial spacing, subtle accents, clean surfaces", UDim2.fromOffset(12, 156))
+    themeTile(card, "Eid", "IDUL FITRI", "Emerald, warm gold, crescent and ketupat", UDim2.new(0.51, 0, 0, 156))
+
+    local details = addCard(Content, "DESIGN NOTES", "Theme-specific components, not just a recolor.", 122, 3)
+    local notes = {
+        Galaxy = "Planet-shaped navigation, orbital hero art, star field and restrained glow.",
+        Lego = "Brick navigation, stud details, raised action keys and squared modular cards.",
+        Modern = "Slim navigation rail, editorial hierarchy, understated borders and spacing.",
+        Eid = "Emerald surfaces, gold trim, crescent ornament and layered ketupat geometry.",
+    }
+    text(details, notes[State.Theme], 10, Theme.Text, Enum.Font.Gotham,
+        UDim2.fromOffset(15, 56), UDim2.new(1, -30, 0, 45))
+end
+
+local function pageProfile()
+    clearContent()
+    createListContent()
+    addPageHeading(Content, "PLAYER PROFILE", "Identity and session details visible to this local client.")
+    local card = addCard(Content, "CURRENT PLAYER", "Roblox profile snapshot", 154, 2)
+    local avatar = make("ImageLabel", {
+        Position = UDim2.fromOffset(15, 53),
+        Size = UDim2.fromOffset(76, 76),
+        BackgroundColor3 = Theme.Element,
+        BorderSizePixel = 0,
+        Image = "",
+        ZIndex = 8,
+    }, card)
+    corner(avatar, Theme.Style == "Lego" and 5 or 18)
+    outline(avatar, Theme.Accent, 1.4, 0.18)
     task.spawn(function()
-        local ok, img = pcall(function()
+        local ok, image = pcall(function()
             return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
         end)
-        if ok and av.Parent then av.Image = img end
+        if ok and avatar and avatar.Parent then avatar.Image = image end
     end)
-    New("TextLabel", {Position=UDim2.fromOffset(88,52), Size=UDim2.new(1,-100,0,20), BackgroundTransparency=1, Text=LocalPlayer.DisplayName, TextColor3=T.White, Font=Enum.Font.GothamBold, TextSize=14, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, profile)
-    New("TextLabel", {Position=UDim2.fromOffset(88,74), Size=UDim2.new(1,-100,0,16), BackgroundTransparency=1, Text="@"..LocalPlayer.Name.."  ·  SESSION ACTIVE", TextColor3=T.Accent, Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, profile)
-    New("TextLabel", {Position=UDim2.fromOffset(88,96), Size=UDim2.new(1,-100,0,14), BackgroundTransparency=1, Text="Key Active · Premium Client", TextColor3=T.Muted, Font=Enum.Font.Code, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, profile)
-    local line = New("Frame", {Position=UDim2.fromOffset(12,128), Size=UDim2.new(1,-24,0,2), BackgroundColor3=T.Accent, BorderSizePixel=0, ZIndex=13}, profile)
+    text(card, LocalPlayer.DisplayName, 13, Theme.Text, Enum.Font.GothamBold,
+        UDim2.fromOffset(105, 59), UDim2.new(1, -120, 0, 22))
+    text(card, "@" .. LocalPlayer.Name, 9, Theme.Muted, Enum.Font.Code,
+        UDim2.fromOffset(105, 83), UDim2.new(1, -120, 0, 18))
+    text(card, "USER ID  " .. tostring(LocalPlayer.UserId), 8, Theme.Accent, Enum.Font.GothamBold,
+        UDim2.fromOffset(105, 107), UDim2.new(1, -120, 0, 17))
 
-    local perf = Card("LIVE STATS", "Real-time client", 90)
-    local st = New("TextLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.new(1,-24,0,30), BackgroundTransparency=1, Text="FPS: -- | Players: -- | Time: 00:00", TextColor3=T.Accent, Font=Enum.Font.Code, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, perf)
-    B.StatsLabel = st
-
-    local status = Card("MODULE STATUS", "Active systems", 110)
-    local ms = New("TextLabel", {Position=UDim2.fromOffset(12,48), Size=UDim2.new(1,-24,0,50), BackgroundTransparency=1, Text="Aim OFF | ESP OFF | Brutal idle\nVIP tab removed · Troll ready", TextColor3=T.Muted, Font=Enum.Font.Code, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, TextYAlignment=Enum.TextYAlignment.Top, ZIndex=13}, status)
-    B.HomeModuleStatus = ms
-
-    local quick = Card("QUICK ACCESS", "Shortcuts", 80)
-    Action(quick, 42, "System notification", function() Notify("BAXTARA", "Dashboard OK · Avatar loaded") end)
+    local info = addCard(Content, "SESSION INFORMATION", "Read-only local session information.", 115, 3)
+    text(info, "Account age: " .. tostring(LocalPlayer.AccountAge) .. " days", 10, Theme.Text,
+        Enum.Font.Gotham, UDim2.fromOffset(15, 56), UDim2.new(1, -30, 0, 18))
+    text(info, "Players in this server: " .. tostring(#Players:GetPlayers()), 10, Theme.Text,
+        Enum.Font.Gotham, UDim2.fromOffset(15, 80), UDim2.new(1, -30, 0, 18))
 end
 
-PageBuilders.ESP = function()
-    ClearContent()
-    local S = B.Settings.ESP
-    local c = Card("ESP SETTINGS", "Player visuals", 360)
-    Toggle(c, 42, "Enable ESP", "Master toggle", S.Enabled, function(v) B.Settings.ESP.Enabled=v end)
-    Toggle(c, 78, "Box ESP", "Full body box", S.Box, function(v) B.Settings.ESP.Box=v end)
-    Toggle(c, 114, "Name", "Player names", S.Name, function(v) B.Settings.ESP.Name=v end)
-    Toggle(c, 150, "Health Bar", "HP bar", S.HealthBar, function(v) B.Settings.ESP.HealthBar=v end)
-    Toggle(c, 186, "Distance", "Range text", S.Distance, function(v) B.Settings.ESP.Distance=v end)
-    Toggle(c, 222, "Tracer Line", "Line to target", S.Tracer, function(v) B.Settings.ESP.Tracer=v end)
-    Toggle(c, 258, "Skeleton ESP", "Bone lines", S.Skeleton, function(v) B.Settings.ESP.Skeleton=v end)
-    Toggle(c, 294, "Visible Check", "Green/red", S.VisibleCheck, function(v) B.Settings.ESP.VisibleCheck=v end)
-    Toggle(c, 330, "NPC / Bot ESP", "Non-player characters", S.NPCESP, function(v) B.Settings.ESP.NPCESP=v end)
-    local tr = Card("TRACER ORIGIN", "Where line starts", 160)
-    Action(tr, 42, "Origin: Bottom", function() B.Settings.ESP.TracerOrigin="Bottom"; Notify("ESP","Tracer Bottom") end)
-    Action(tr, 74, "Origin: Center (crosshair)", function() B.Settings.ESP.TracerOrigin="Center"; Notify("ESP","Tracer Center") end)
-    Action(tr, 106, "Origin: Top", function() B.Settings.ESP.TracerOrigin="Top"; Notify("ESP","Tracer Top") end)
-    Action(tr, 138, "Origin: Left / Right edge", function()
-        B.Settings.ESP.TracerOrigin = (B.Settings.ESP.TracerOrigin=="Left") and "Right" or "Left"
-        Notify("ESP","Tracer "..B.Settings.ESP.TracerOrigin)
-    end)
-    local c2 = Card("COLOR", "ESP + FOV color", 140)
-    Action(c2, 42, "Cyan", function() ApplyColor("Cyan") end)
-    Action(c2, 74, "Purple", function() ApplyColor("Purple") end)
-    Action(c2, 106, "Green", function() ApplyColor("Green") end)
-    local c3 = Card("RANGE", "Max distance", 90)
-    Slider(c3, 42, "Max Distance", 100, 2000, S.MaxDistance, function(v) B.Settings.ESP.MaxDistance=v end)
+local function pageVisualLab()
+    clearContent()
+    createListContent()
+    addPageHeading(Content, "LOCAL VISUAL LAB", "These controls affect this interface only. They do not change the game world.")
+    local toggleCard = addCard(Content, "ATMOSPHERE", "Enable or disable decorative layers.", 300, 2)
+    addToggle(toggleCard, "Ambient animation", "Subtle motion in decorative elements.", "Ambient", 55)
+    addToggle(toggleCard, "Star particles", "Small decorative stars in Galaxy mode.", "StarParticles", 113)
+    addToggle(toggleCard, "Orbit motion", "Move the small satellite around the planet.", "OrbitMotion", 171)
+    addToggle(toggleCard, "Ketupat sway", "Gentle hanging ornament motion in Idul Fitri mode.", "KetupatMotion", 229)
+    local sliders = addCard(Content, "MOTION TUNING", "Control the pace and intensity of UI animation.", 188, 3)
+    addSlider(sliders, "Glow intensity", "Decorative highlight strength", "Glow", 0, 1, 54)
+    addSlider(sliders, "Animation speed", "Animation multiplier", "AnimationSpeed", 0.25, 2, 111)
 end
 
-PageBuilders.Aim = function()
-    ClearContent()
-    local S = B.Settings.Aim
-    local c = Card("AIM SETTINGS", "Aimbot system", 430)
-    Toggle(c, 42, "Enable Aimbot", "Master", S.Enabled, function(v)
-        B.Settings.Aim.Enabled=v
-        if v and DrawingLib and not B.Drawings.FOV then
-            local f=Drawing.new("Circle"); f.Thickness=3.2; f.NumSides=64; f.Filled=false
-            f.Color=B.Settings.ESP.FOVColor; f.Transparency=0.3; f.Visible=false; B.Drawings.FOV=f
-        end
-    end)
-    Toggle(c, 78, "Silent Aim", "Hard snap", S.SilentAim, function(v) B.Settings.Aim.SilentAim=v end)
-    Toggle(c, 114, "Anti Miss", "Stronger track", S.AntiMiss, function(v) B.Settings.Aim.AntiMiss=v end)
-    Toggle(c, 150, "Aim Lock", "Lock target", S.AimLock, function(v) B.Settings.Aim.AimLock=v if not v then B.LockedTarget=nil end end)
-    Toggle(c, 186, "Visibility Check", "Only visible", S.VisibilityCheck, function(v) B.Settings.Aim.VisibilityCheck=v end)
-    Toggle(c, 222, "Head Aim", "Aim head", S.HeadAim, function(v) B.Settings.Aim.HeadAim=v; B.Settings.Aim.HitPart="Head"; if v then B.Settings.Aim.BodyAim=false end end)
-    Toggle(c, 258, "Body Aim", "Aim body", S.BodyAim, function(v) B.Settings.Aim.BodyAim=v; B.Settings.Aim.HitPart="Body"; if v then B.Settings.Aim.HeadAim=false end end)
-    Toggle(c, 294, "FOV Circle", "Show FOV", S.FOVCircle, function(v) B.Settings.Aim.FOVCircle=v end)
-    Toggle(c, 330, "Team Check", "Skip teammates", S.TeamCheck, function(v) B.Settings.Aim.TeamCheck=v end)
-    Toggle(c, 366, "Aim NPC / Bot", "Target non-players", S.AimNPC, function(v) B.Settings.Aim.AimNPC=v end)
-    local c2 = Card("FOV / SMOOTH", "Values", 120)
-    Slider(c2, 42, "FOV Size", 40, 1000, S.FOV, function(v) B.Settings.Aim.FOV=v end)
-    Slider(c2, 88, "Smooth x100", 5, 40, math.floor(S.AimSmoothing*100), function(v) B.Settings.Aim.AimSmoothing=v/100 end)
+local function pagePreferences()
+    clearContent()
+    createListContent()
+    addPageHeading(Content, "PREFERENCES", "Practical controls for comfort, readability and panel behavior.")
+    local card = addCard(Content, "INTERFACE BEHAVIOR", "Changes apply immediately.", 180, 2)
+    addToggle(card, "Reduce motion", "Stop continuous decorative animation.", "ReduceMotion", 55)
+    addToggle(card, "Compact cards", "Reduce vertical spacing in page sections.", "CompactCards", 113)
+    local actions = addCard(Content, "PANEL ACTIONS", "Quick maintenance for the local interface.", 158, 3)
+    addButton(actions, "RESET VISUAL PREFERENCES", UDim2.fromOffset(12, 54), UDim2.new(1, -24, 0, 34), function()
+        State.Ambient = true
+        State.StarParticles = true
+        State.OrbitMotion = true
+        State.KetupatMotion = true
+        State.ReduceMotion = false
+        State.CompactCards = false
+        State.Glow = 0.72
+        State.AnimationSpeed = 1.0
+        renderUI()
+        showNotice("VISUAL PREFERENCES RESET")
+    end, "secondary")
+    addButton(actions, "UNLOAD INTERFACE", UDim2.fromOffset(12, 98), UDim2.new(1, -24, 0, 34), function()
+        State.Destroyed = true
+        ScreenGui:Destroy()
+    end, "danger")
 end
 
-PageBuilders.Brutal = function()
-    ClearContent()
-    local S = B.Settings.Brutal
-    local c = Card("MOVEMENT", "Fly speed noclip god ghost", 380)
-    Toggle(c, 42, "Fly", "Free fly", S.Fly, function(v)
-        B.Settings.Brutal.Fly=v
-        local char=LocalPlayer.Character; local root=char and GetRoot(char); local hum=char and char:FindFirstChildOfClass("Humanoid")
-        if B.FlyBV then pcall(function() B.FlyBV:Destroy() end) B.FlyBV=nil end
-        if B.FlyBG then pcall(function() B.FlyBG:Destroy() end) B.FlyBG=nil end
-        if v and root and hum then
-            hum.PlatformStand=true
-            B.FlyBV=Instance.new("BodyVelocity"); B.FlyBV.MaxForce=Vector3.new(9e4,9e4,9e4); B.FlyBV.Velocity=Vector3.zero; B.FlyBV.Parent=root
-            B.FlyBG=Instance.new("BodyGyro"); B.FlyBG.MaxTorque=Vector3.new(9e4,9e4,9e4); B.FlyBG.P=3000; B.FlyBG.Parent=root
-        elseif hum then hum.PlatformStand=false end
-    end)
-    Slider(c, 78, "Fly Speed", 10, 100, S.FlySpeed, function(v) B.Settings.Brutal.FlySpeed=v end)
-    Toggle(c, 122, "Speed Hack", "Walk speed", S.SpeedHack, function(v)
-        B.Settings.Brutal.SpeedHack=v
-        local hum=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then if v then B.OriginalWalkSpeed=hum.WalkSpeed; hum.WalkSpeed=math.clamp(B.Settings.Brutal.SpeedValue,16,100) else hum.WalkSpeed=B.OriginalWalkSpeed or 16 end end
-    end)
-    Slider(c, 158, "Walk Speed", 16, 100, S.SpeedValue, function(v) B.Settings.Brutal.SpeedValue=v if B.Settings.Brutal.SpeedHack then local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h.WalkSpeed=v end end end)
-    Toggle(c, 200, "Infinite Jump", "Spam jump", S.InfiniteJump, function(v)
-        B.Settings.Brutal.InfiniteJump=v
-        if B.JumpConn then B.JumpConn:Disconnect() B.JumpConn=nil end
-        if v then B.JumpConn=UserInputService.JumpRequest:Connect(function() local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end); AddConn(B.JumpConn) end
-    end)
-    Toggle(c, 236, "Noclip", "No collision", S.Noclip, function(v)
-        B.Settings.Brutal.Noclip=v
-        if B.NoclipConn then B.NoclipConn:Disconnect() B.NoclipConn=nil end
-        if v then B.NoclipConn=RunService.Stepped:Connect(function() local ch=LocalPlayer.Character if not ch then return end for _,p in ipairs(ch:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide=false end end end); AddConn(B.NoclipConn) end
-    end)
-    Toggle(c, 272, "God Mode", "Local invincible (best effort)", S.GodMode, function(v)
-        B.Settings.Brutal.GodMode = v
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then
-            if v then
-                B._GodConn = hum.HealthChanged:Connect(function()
-                    if B.Settings.Brutal.GodMode and hum.Health < hum.MaxHealth then
-                        hum.Health = hum.MaxHealth
-                    end
-                end)
-                hum.Health = hum.MaxHealth
-                AddConn(B._GodConn)
-            end
-        end
-    end)
-    Toggle(c, 308, "Ghost Mode", "Local invisible", S.GhostMode, function(v)
-        B.Settings.Brutal.GhostMode = v
-        local char = LocalPlayer.Character
-        if not char then return end
-        for _, p in ipairs(char:GetDescendants()) do
-            if p:IsA("BasePart") then
-                p.LocalTransparencyModifier = v and 1 or 0
-            elseif p:IsA("Decal") then
-                p.Transparency = v and 1 or 0
-            end
-        end
-    end)
-
-    local h = Card("HITBOX", "Enlarge Head or Body", 200)
-    Toggle(h, 42, "Hitbox Expand", "Enlarge real part", S.HitboxExpand, function(v)
-        B.Settings.Brutal.HitboxExpand = v
-        if not v then ClearAllHitboxes() end
-    end)
-    Toggle(h, 78, "Hitbox on Head", "Enlarge Head part", S.HitboxPart=="Head", function(v)
-        if v then
-            B.Settings.Brutal.HitboxPart = "Head"
-            ClearAllHitboxes()
-        end
-    end)
-    Toggle(h, 114, "Hitbox on Body", "Enlarge HRP (body)", S.HitboxPart=="Body", function(v)
-        if v then
-            B.Settings.Brutal.HitboxPart = "Body"
-            ClearAllHitboxes()
-        end
-    end)
-    Slider(h, 150, "Hitbox Size 2-27", 2, 27, S.HitboxSize, function(v)
-        B.Settings.Brutal.HitboxSize = v
-    end)
-
-    local w = Card("COMBAT", "Weapon & autokill", 200)
-    Toggle(w, 42, "Anti Cooldown", "No fire delay", S.AntiCooldown, function(v) B.Settings.Brutal.AntiCooldown=v end)
-    Toggle(w, 78, "Infinite Ammo", "Ammo refill", S.InfiniteAmmo, function(v) B.Settings.Brutal.InfiniteAmmo=v end)
-    Toggle(w, 114, "Attack Speed 1-12", "Safe rate", S.AttackSpeed, function(v) B.Settings.Brutal.AttackSpeed=v end)
-    Slider(w, 150, "Attack Speed Val", 1, 12, S.AttackSpeedVal, function(v) B.Settings.Brutal.AttackSpeedVal=v end)
-
-    local fk = Card("FLY KILL ALL", "Fly up + TP enemies + shoot", 100)
-    Toggle(fk, 42, "Fly Kill All", "Hover + pull enemies + auto fire", S.FlyKillAll, function(v)
-        B.Settings.Brutal.FlyKillAll = v
-        if not v then
-            local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if hum then hum.PlatformStand = false end
-            if B.FlyKillBV then pcall(function() B.FlyKillBV:Destroy() end) B.FlyKillBV = nil end
-        end
-    end)
-
-    local sp = Card("SPIN BOT", "Character spin (free)", 100)
-    Toggle(sp, 42, "Spin Bot", "Rotate character", S.SpinBot, function(v) B.Settings.Brutal.SpinBot = v end)
-    Slider(sp, 78, "Spin Speed 1-120", 1, 120, S.SpinSpeed or 40, function(v) B.Settings.Brutal.SpinSpeed = v end)
+local function pageAbout()
+    clearContent()
+    createListContent()
+    addPageHeading(Content, "ABOUT BAXTARA", "A visual interface project with four independent design systems.")
+    local card = addCard(Content, "BAXTARA X / UI EDITION 6.0", "Local interface • Responsive layout • No external asset dependency", 155, 2)
+    text(card, "The panel focuses on presentation: navigation, responsive cards, theme geometry, interaction feedback and decorative motion.",
+        10, Theme.Text, Enum.Font.Gotham, UDim2.fromOffset(15, 56), UDim2.new(1, -30, 0, 50))
+    local safety = addCard(Content, "SCOPE", "What this script does and does not do.", 136, 3)
+    text(safety, "UI ONLY  •  No gameplay automation  •  No player manipulation  •  No anti-cheat bypass  •  No ban or kick evasion",
+        10, Theme.Accent2, Enum.Font.GothamBold, UDim2.fromOffset(15, 56), UDim2.new(1, -30, 0, 52))
 end
 
-PageBuilders.LocalCfg = function()
-    ClearContent()
-    local S = B.Settings.LocalCfg
-    local sky = Card("SKY HACKER", "Bright matrix sky + logo on clouds", 110)
-    Toggle(sky, 42, "Hacker Sky ON", "Bright green matrix style", S.SkyBAXTARA, function(v)
-        B.Settings.LocalCfg.SkyBAXTARA = v
-        if B.SkyFolder then pcall(function() B.SkyFolder:Destroy() end) B.SkyFolder=nil end
-        if v then
-            B.SkyFolder = Instance.new("Folder")
-            B.SkyFolder.Name = "BAXTARA_SKY"
-            B.SkyFolder.Parent = Workspace
-            -- bright hacker lighting
-            Lighting.Brightness = 3
-            Lighting.Ambient = Color3.fromRGB(40, 80, 50)
-            Lighting.OutdoorAmbient = Color3.fromRGB(60, 120, 70)
-            Lighting.FogColor = Color3.fromRGB(20, 60, 40)
-            Lighting.FogEnd = 2000
-            Lighting.ClockTime = 14
-            -- soft logos high in sky (not blocking view)
-            local root = GetRoot(LocalPlayer.Character)
-            local base = root and root.Position or Vector3.new(0, 0, 0)
-            -- cover sky with grid of logos + color atmosphere
-            local positions = {}
-            for ring = 1, 3 do
-                local n = 6 + ring * 2
-                local rad = 80 + ring * 70
-                local h = 60 + ring * 40
-                for i = 1, n do
-                    local ang = (i/n) * math.pi * 2
-                    table.insert(positions, Vector3.new(base.X + math.cos(ang)*rad, h, base.Z + math.sin(ang)*rad))
-                end
-            end
-            -- top center
-            table.insert(positions, Vector3.new(base.X, 160, base.Z))
-            for _, pos in ipairs(positions) do
-                local part = Instance.new("Part")
-                part.Anchored = true
-                part.CanCollide = false
-                part.Transparency = 1
-                part.Size = Vector3.new(1,1,1)
-                part.CFrame = CFrame.new(pos)
-                part.Parent = B.SkyFolder
-                local bb = Instance.new("BillboardGui")
-                bb.Size = UDim2.fromOffset(280, 36)
-                bb.MaxDistance = 4000
-                bb.AlwaysOnTop = false
-                bb.Parent = part
-                local tl = Instance.new("TextLabel")
-                tl.Size = UDim2.fromScale(1,1)
-                tl.BackgroundTransparency = 1
-                tl.Text = "BAXTARA X CHEAT"
-                tl.TextColor3 = Color3.fromRGB(0, 255, 130)
-                tl.TextTransparency = 0.25
-                tl.TextStrokeColor3 = Color3.fromRGB(0, 40, 20)
-                tl.TextStrokeTransparency = 0.5
-                tl.Font = Enum.Font.GothamBlack
-                tl.TextScaled = true
-                tl.Parent = bb
-            end
-            -- atmosphere color (covers sky look)
-            pcall(function()
-                local sky = Lighting:FindFirstChildOfClass("Sky")
-                if not sky then
-                    sky = Instance.new("Sky")
-                    sky.Parent = Lighting
-                end
-                sky.SkyboxBk = ""
-                sky.SkyboxDn = ""
-                sky.SkyboxFt = ""
-                sky.SkyboxLf = ""
-                sky.SkyboxRt = ""
-                sky.SkyboxUp = ""
-                sky.CelestialBodiesShown = false
-            end)
-            Lighting.FogColor = Color3.fromRGB(10, 40, 25)
-            Lighting.FogStart = 0
-            Lighting.FogEnd = 800
-        else
-            Lighting.Brightness = 1
-            Lighting.FogEnd = 100000
-        end
-    end)
-    Action(sky, 78, "Refresh sky logos", function()
-        if B.Settings.LocalCfg.SkyBAXTARA then
-            local t = true
-            B.Settings.LocalCfg.SkyBAXTARA = false
-            if B.SkyFolder then pcall(function() B.SkyFolder:Destroy() end) end
-            task.wait(0.05)
-            -- re-fire by toggling logic: user can toggle again; quick rebuild:
-            B.Settings.LocalCfg.SkyBAXTARA = true
-            Notify("SKY", "Refreshed")
-        end
-    end)
+local PageRenderers = {
+    OVERVIEW = pageOverview,
+    PROFILE = pageProfile,
+    APPEARANCE = pageAppearance,
+    ["VISUAL LAB"] = pageVisualLab,
+    PREFERENCES = pagePreferences,
+    ABOUT = pageAbout,
+}
 
-    local tag = Card("SELF NAME TAG", "Tag di Avatar kamu", 150)
-    Toggle(tag, 42, "Enable Self Tag", "Billboard di atas kepala", S.SelfTag, function(v)
-        B.Settings.LocalCfg.SelfTag = v
-        if not v and B.SelfTagGui then pcall(function() B.SelfTagGui:Destroy() end) B.SelfTagGui=nil end
-    end)
-    Action(tag, 78, "Text: BAXTARA", function() B.Settings.LocalCfg.SelfTagText="BAXTARA"; Notify("TAG","BAXTARA") end)
-    Action(tag, 110, "Rainbow / Gold toggle", function()
-        B.Settings.LocalCfg.SelfTagRainbow = not B.Settings.LocalCfg.SelfTagRainbow
-        Notify("TAG", B.Settings.LocalCfg.SelfTagRainbow and "Rainbow" or "Gold")
-    end)
-
-    local chat = Card("SERVER CHAT (bubble)", "Custom bubble di atas kepala", 120)
-    Toggle(chat, 42, "Show Chat Bubble", "Teks bubble lokal", S.ServerChat, function(v)
-        B.Settings.LocalCfg.ServerChat = v
-        if not v and B.ChatBubble then pcall(function() B.ChatBubble:Destroy() end) B.ChatBubble=nil end
-    end)
-    Action(chat, 78, "Set bubble: Hello BAXTARA", function()
-        B.Settings.LocalCfg.ChatBubbleText = "Hello BAXTARA"
-        B.Settings.LocalCfg.ServerChat = true
-        Notify("CHAT", "Bubble set")
-    end)
-
-    local un = Card("UNLOCK / RANK", "Best-effort client", 140)
-    Toggle(un, 42, "Unlock Passes attempt", "Scan attributes/values", S.UnlockPasses, function(v)
-        B.Settings.LocalCfg.UnlockPasses = v
-        if v then
-            for _, obj in ipairs(LocalPlayer:GetDescendants()) do
-                if obj:IsA("BoolValue") then
-                    local n = obj.Name:lower()
-                    if n:find("vip") or n:find("pass") or n:find("premium") or n:find("gamepass") or n:find("owned") then
-                        pcall(function() obj.Value = true end)
-                    end
-                end
-            end
-            pcall(function()
-                LocalPlayer:SetAttribute("VIP", true)
-                LocalPlayer:SetAttribute("Premium", true)
-                LocalPlayer:SetAttribute("HasPass", true)
-            end)
-            Notify("UNLOCK", "Pass attributes forced (client)")
-        end
-    end)
-    Toggle(un, 78, "Auto Rank / Level attempt", "Bump level values", S.AutoRank, function(v)
-        B.Settings.LocalCfg.AutoRank = v
-    end)
-    Action(un, 114, "Force +50 Level once", function()
-        for _, obj in ipairs(LocalPlayer:GetDescendants()) do
-            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
-                local n = obj.Name:lower()
-                if n:find("level") or n:find("rank") or n:find("xp") then
-                    pcall(function() obj.Value = obj.Value + 50 end)
-                end
-            end
-        end
-        Notify("RANK", "Level/XP +50 attempt")
-    end)
-
-    local plist = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then table.insert(plist, p) end
+local function makeNavButton(parent, page, icon, horizontal, order)
+    local active = State.SelectedPage == page
+    local style = Theme.Style
+    local width, height
+    if horizontal then
+        width, height = UDim2.new(0, 112, 1, -8), UDim2.new(0, 36, 0, 36)
+    elseif style == "Galaxy" then
+        width, height = UDim2.new(1, -12, 0, 54), UDim2.new(1, -12, 0, 54)
+    else
+        width, height = UDim2.new(1, -10, 0, 43), UDim2.new(1, -10, 0, 43)
     end
-    local tpH = 90 + math.min(#plist, 8) * 44
-    local tp = Card("TELEPORT PLAYERS", "Klik nama + avatar untuk TP", math.max(tpH, 140))
-    Action(tp, 42, "TP ALL in front", function()
-        local my = GetRoot(LocalPlayer.Character)
-        if not my then return end
-        local front = my.CFrame * CFrame.new(0,0,-10)
-        local i=0
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then
-                local r = GetRoot(GetChar(p))
-                if r then i=i+1; pcall(function() r.CFrame = front * CFrame.new((i%4)*3-4,0,math.floor(i/4)*3) end) end
-            end
-        end
-        Notify("TP","All front")
-    end)
-    local y = 74
-    for idx, plr in ipairs(plist) do
-        if idx > 8 then break end
-        local row = New("Frame", {Position=UDim2.fromOffset(10,y), Size=UDim2.new(1,-20,0,40), BackgroundColor3=T.Element, BorderSizePixel=0, ZIndex=13}, tp)
-        Round(row, 8)
-        local img = New("ImageLabel", {Position=UDim2.fromOffset(4,4), Size=UDim2.fromOffset(32,32), BackgroundColor3=T.Off, BorderSizePixel=0, ZIndex=14}, row)
-        Round(img, 6)
-        task.spawn(function()
-            local ok, url = pcall(function()
-                return Players:GetUserThumbnailAsync(plr.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
-            end)
-            if ok and img.Parent then img.Image = url end
-        end)
-        New("TextLabel", {Position=UDim2.fromOffset(42,4), Size=UDim2.new(1,-100,0,18), BackgroundTransparency=1, Text=plr.DisplayName, TextColor3=T.White, Font=Enum.Font.GothamBold, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
-        New("TextLabel", {Position=UDim2.fromOffset(42,20), Size=UDim2.new(1,-100,0,14), BackgroundTransparency=1, Text="@"..plr.Name, TextColor3=T.Muted, Font=Enum.Font.Code, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
-        local tpb = New("TextButton", {Position=UDim2.new(1,-54,0.5,-12), Size=UDim2.fromOffset(48,24), BackgroundColor3=T.Accent, Text="TP", TextColor3=T.Background, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=14, AutoButtonColor=false}, row)
-        Round(tpb, 6)
-        tpb.MouseButton1Click:Connect(function()
-            local my = GetRoot(LocalPlayer.Character)
-            local r = GetRoot(GetChar(plr))
-            if my and r then
-                my.CFrame = r.CFrame * CFrame.new(0, 0, 3)
-                Notify("TP", "→ "..plr.DisplayName)
-            else
-                Notify("TP", "Player not available")
-            end
-        end)
-        y = y + 44
-    end
-    if #plist == 0 then
-        New("TextLabel", {Position=UDim2.fromOffset(12,74), Size=UDim2.new(1,-24,0,20), BackgroundTransparency=1, Text="No other players in server", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=10, ZIndex=13}, tp)
-    end
-
-    local fr = Card("FREEZE / LAG", "Others", 100)
-    Toggle(fr, 42, "Freeze All Others", "Anchor HRP", S.FreezeOthers, function(v)
-        B.Settings.LocalCfg.FreezeOthers = v
-        if not v then
-            for _, root in pairs(B.FrozenParts) do pcall(function() if root and root.Parent then root.Anchored=false end end) end
-            B.FrozenParts = {}
-        end
-    end)
-    Toggle(fr, 78, "Anti Lag Self", "Low quality", S.AntiLagSelf, function(v)
-        B.Settings.LocalCfg.AntiLagSelf = v
-        pcall(function() settings().Rendering.QualityLevel = v and Enum.QualityLevel.Level01 or Enum.QualityLevel.Automatic end)
-    end)
-end
-
-PageBuilders.Settings = function()
-    ClearContent()
-    local th = Card("TAMPILAN PANEL", "Pilih tema UI premium", 220)
-    Action(th, 42, "✦  GALAKSI — elegan ungu bintang", function() ApplyTheme("Galaxy") end)
-    Action(th, 74, "■  LEGO — kotak Roblox stud", function() ApplyTheme("Lego") end)
-    Action(th, 106, "☪  RAMADHAN — emas & hijau", function() ApplyTheme("Ramadhan") end)
-    Action(th, 138, "◆  MODERN — cyan default polish", function() ApplyTheme("Modern") end)
-    New("TextLabel", {
-        Position = UDim2.fromOffset(12, 175),
-        Size = UDim2.new(1, -24, 0, 30),
-        BackgroundTransparency = 1,
-        Text = "Tema mengubah warna, sudut, border & dekor panel.",
-        TextColor3 = T.Muted,
-        Font = Enum.Font.Gotham,
-        TextSize = 10,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
-        ZIndex = 13,
-    }, th)
-
-    local pr = Card("PROTECT", "Anti kick / hop", 140)
-    Toggle(pr, 42, "Anti-Kick Watch", "Detect kick UI", B.Settings.Protect.AntiKick, function(v) B.Settings.Protect.AntiKick=v end)
-    Toggle(pr, 78, "Auto Hop on Flag", "Teleport on detect", B.Settings.Protect.AutoHopOnFlag, function(v) B.Settings.Protect.AutoHopOnFlag=v end)
-    Action(pr, 114, "FORCE SERVER HOP", function()
-        pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
-    end)
-
-    local key = Card("KEY SAVE", "Auto login", 100)
-    Action(key, 42, "Save Key (auto unlock next run)", function()
-        SaveKeyUnlock()
-        Notify("KEY", "Saved — next execute skips key")
-    end)
-    Action(key, 74, "Clear Saved Key", function()
-        getgenv().BAXTARA_UNLOCKED = false
-        pcall(function() if isfile and isfile(KEY_FILE) and delfile then delfile(KEY_FILE) end end)
-        Notify("KEY", "Save cleared")
-    end)
-
-    local un = Card("UNLOAD", "Remove script", 60)
-    Action(un, 42, "UNLOAD SCRIPT", function()
-        CleanupAll(); ScreenGui:Destroy(); getgenv().BAXTARA=nil
-    end)
-end
-
-local function SelectTab(name)
-    CurrentTab = name
-    for n, btn in pairs(TabButtons) do
-        local active = (n == name)
-        pcall(function()
-            TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3 = active and T.Element or T.Sidebar}):Play()
-            local ind = btn:FindFirstChild("Ind")
-            if ind then ind.BackgroundTransparency = active and 0 or 1 end
-        end)
-    end
-    if PageBuilders[name] then
-        local ok, err = pcall(PageBuilders[name])
-        if not ok then
-            warn("[BAXTARA] Page error:", name, err)
-            pcall(function()
-                Notify("ERROR", "Page "..name.." failed")
-            end)
-        end
-    end
-end
-
-for i, name in ipairs(SideNames) do
-    local btn = New("TextButton", {Size=UDim2.new(1,0,0,32), BackgroundColor3=T.Sidebar, Text="", AutoButtonColor=false, LayoutOrder=i, ZIndex=13}, TabHolder)
-    Round(btn, 8)
-    local ind = New("Frame", {Name="Ind", Position=UDim2.fromOffset(0,6), Size=UDim2.new(0,3,0,20), BackgroundColor3=T.Accent, BackgroundTransparency=1, BorderSizePixel=0, ZIndex=14}, btn)
-    Round(ind, 4)
-    New("TextLabel", {Position=UDim2.fromOffset(12,0), Size=UDim2.new(1,-16,1,0), BackgroundTransparency=1, Text=name, TextColor3=T.White, Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, btn)
-    TabButtons[name] = btn
-    btn.MouseButton1Click:Connect(function() SelectTab(name) end)
-end
-
--- ===================== CORE =====================
-local function GetAimPart(char)
-    if B.Settings.Aim.HitPart=="Body" or B.Settings.Aim.BodyAim then return GetRoot(char) or GetHead(char) end
-    return GetHead(char) or GetRoot(char)
-end
-
-local function GetBestTarget()
-    local best, bestScore = nil, math.huge
-    local center, camPos, fov = ScreenCenter(), Camera.CFrame.Position, B.Settings.Aim.FOV
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p~=LocalPlayer and TeamOK(p) then
-            local char=GetChar(p)
-            if IsAlive(char) then
-                local part=GetAimPart(char)
-                if part then
-                    local dist=DistTo(part.Position)
-                    if dist<=B.Settings.Aim.AimDistance then
-                        local screen,on=WorldToScreen(part.Position)
-                        if on then
-                            local cross=(screen-center).Magnitude
-                            if cross<=fov then
-                                local vis=IsVisible(camPos, part.Position, char)
-                                if not (B.Settings.Aim.VisibilityCheck and not vis) and cross<bestScore then
-                                    bestScore=cross; best=p
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    if B.Settings.Aim.AimNPC then
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
-                local hum = obj:FindFirstChildOfClass("Humanoid")
-                local head = obj:FindFirstChild("Head") or obj:FindFirstChild("HumanoidRootPart")
-                if hum and head and hum.Health > 0 then
-                    local dist = DistTo(head.Position)
-                    if dist <= B.Settings.Aim.AimDistance then
-                        local screen, on = WorldToScreen(head.Position)
-                        if on then
-                            local cross = (screen - center).Magnitude
-                            if cross <= fov and cross < bestScore then
-                                bestScore = cross
-                                best = {NPC=true, Part=head, Model=obj}
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return best
-end
-
-local function GetNearestEnemy()
-    local best, bd = nil, 99999
-    local my = GetRoot(LocalPlayer.Character)
-    if not my then return nil end
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p~=LocalPlayer and TeamOK(p) then
-            local char=GetChar(p)
-            if IsAlive(char) then
-                local root=GetRoot(char)
-                if root then
-                    local d=(my.Position-root.Position).Magnitude
-                    if d<bd and d<B.Settings.Aim.AimDistance then bd=d; best=p end
-                end
-            end
-        end
-    end
-    return best
-end
-
-local function AimAt(target)
-    if not target then return end
-    if type(target) == "table" and target.NPC then
-        local part = target.Part
-        if not part then return end
-        local pos = part.Position
-        local smooth = B.Settings.Aim.AimSmoothing
-        Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pos), smooth)
-        return
-    end
-    local char=GetChar(target); if not IsAlive(char) then return end
-    local part=GetAimPart(char); if not part then return end
-    if B.Settings.Aim.VisibilityCheck and not IsVisible(Camera.CFrame.Position, part.Position, char) then return end
-    local pos=part.Position
-    if B.Settings.Aim.AimPrediction then pos=pos+(part.AssemblyLinearVelocity or Vector3.zero)*B.Settings.Aim.PredictionAmount end
-    local smooth=B.Settings.Aim.AimSmoothing
-    if B.Settings.Aim.SilentAim or B.Settings.Brutal.AutoKill then smooth=0.85 end
-    if B.Settings.Aim.AntiMiss then smooth=math.clamp(smooth+0.2,0.1,0.9) end
-    Camera.CFrame=Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, pos), smooth)
-end
-
-local function UpdateAim()
-    if not B.Settings.Aim.Enabled and not B.Settings.Brutal.AutoKill then
-        if B.Drawings.FOV then B.Drawings.FOV.Visible=false end
-        B.CurrentTarget=nil; return
-    end
-    local center=ScreenCenter()
-    if B.Drawings.FOV and B.Settings.Aim.FOVCircle and B.Settings.Aim.Enabled then
-        B.Drawings.FOV.Position=center; B.Drawings.FOV.Radius=B.Settings.Aim.FOV
-        B.Drawings.FOV.Color=B.Settings.ESP.FOVColor; B.Drawings.FOV.Thickness=3.2; B.Drawings.FOV.Visible=true
-    elseif B.Drawings.FOV then B.Drawings.FOV.Visible=false end
-    local target=B.Settings.Aim.Enabled and ((B.Settings.Aim.AimLock and B.LockedTarget) or GetBestTarget()) or nil
-    if B.Settings.Aim.AimLock and not B.LockedTarget and target then B.LockedTarget=target end
-    if not B.Settings.Aim.AimLock then B.LockedTarget=nil end
-    B.CurrentTarget=target
-    if target then AimAt(target) end
-end
-
--- ESP
-local BonePairs={{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},{"Torso","Left Leg"},{"Torso","Right Leg"}}
-
-local function DestroyPack(id)
-    local pack=B.ESPObjects[id]; if not pack then return end
-    for k,d in pairs(pack) do
-        if k=="Skel" then for _,l in ipairs(d) do pcall(function() if l.Remove then l:Remove() end end) end
-        else pcall(function() if d and d.Remove then d:Remove() end end) end
-    end
-    B.ESPObjects[id]=nil
-end
-
-local function GetESPPack(player)
-    local id=player.UserId
-    if B.ESPObjects[id] then return B.ESPObjects[id] end
-    if not DrawingLib then return nil end
-    local pack={Box=Drawing.new("Square"),Name=Drawing.new("Text"),Health=Drawing.new("Line"),Dist=Drawing.new("Text"),Tracer=Drawing.new("Line"),Skel={}}
-    pack.Box.Thickness=1.5; pack.Box.Filled=false; pack.Box.Visible=false
-    pack.Name.Size=12; pack.Name.Center=true; pack.Name.Outline=true; pack.Name.Visible=false
-    pack.Health.Thickness=2.2; pack.Health.Visible=false
-    pack.Dist.Size=11; pack.Dist.Center=true; pack.Dist.Outline=true; pack.Dist.Visible=false
-    pack.Tracer.Thickness=1.2; pack.Tracer.Visible=false
-    for i=1,14 do local l=Drawing.new("Line"); l.Thickness=1.2; l.Visible=false; pack.Skel[i]=l end
-    B.ESPObjects[id]=pack; return pack
-end
-
-local function HidePack(pack)
-    if not pack then return end
-    for k,d in pairs(pack) do
-        if k=="Skel" then for _,l in ipairs(d) do if l then l.Visible=false end end
-        elseif d and d.Visible~=nil then d.Visible=false end
-    end
-end
-
-local function UpdateESP()
-    local alive={}
-    for _,p in ipairs(Players:GetPlayers()) do if p~=LocalPlayer then alive[p.UserId]=true end end
-    for id,_ in pairs(B.ESPObjects) do if not alive[id] then DestroyPack(id) end end
-    if not B.Settings.ESP.Enabled then for _,pack in pairs(B.ESPObjects) do HidePack(pack) end return end
-    local camPos=Camera.CFrame.Position
-    local bottom=Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
-    for _,player in ipairs(Players:GetPlayers()) do
-        if player==LocalPlayer then continue end
-        local char=GetChar(player); local pack=GetESPPack(player); if not pack then continue end
-        if not IsAlive(char) then HidePack(pack) continue end
-        local root,head=GetRoot(char),GetHead(char); if not root or not head then HidePack(pack) continue end
-        local dist=DistTo(root.Position); if dist>B.Settings.ESP.MaxDistance then HidePack(pack) continue end
-        local top=head.Position+Vector3.new(0,0.4,0); local bot=root.Position-Vector3.new(0,3,0)
-        local topS,on=WorldToScreen(top); local botS=select(1,WorldToScreen(bot)); local rootS=select(1,WorldToScreen(root.Position))
-        local vis=true; if B.Settings.ESP.VisibleCheck then vis=IsVisible(camPos,head.Position,char) end
-        local color=vis and B.Settings.ESP.VisibleColor or B.Settings.ESP.HiddenColor
-        if B.Settings.ESP.PriorityMark and B.CurrentTarget==player then color=B.Settings.ESP.PriorityColor end
-        local boxCol=vis and B.Settings.ESP.BoxColor or B.Settings.ESP.HiddenColor
-        if B.Settings.ESP.Box and pack.Box then
-            local h=math.max(math.abs(topS.Y-botS.Y),14); local w=h*0.68
-            pack.Box.Size=Vector2.new(w,h); pack.Box.Position=Vector2.new(topS.X-w/2,topS.Y); pack.Box.Color=boxCol; pack.Box.Visible=on
-        else pack.Box.Visible=false end
-        if B.Settings.ESP.Name and pack.Name then
-            pack.Name.Text=player.DisplayName or player.Name; pack.Name.Position=Vector2.new(topS.X,topS.Y-13); pack.Name.Color=color; pack.Name.Visible=on
-        else pack.Name.Visible=false end
-        if B.Settings.ESP.HealthBar and pack.Health then
-            local hum=char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                local pct=math.clamp(hum.Health/math.max(hum.MaxHealth,1),0,1); local h=math.max(math.abs(topS.Y-botS.Y),14)
-                local x=topS.X-(h*0.68)/2-5
-                pack.Health.From=Vector2.new(x,topS.Y+h); pack.Health.To=Vector2.new(x,topS.Y+h*(1-pct))
-                pack.Health.Color=Color3.fromRGB(255*(1-pct),255*pct,40); pack.Health.Visible=on
-            end
-        else pack.Health.Visible=false end
-        if B.Settings.ESP.Distance and pack.Dist then
-            pack.Dist.Text=string.format("[%dm]",math.floor(dist)); pack.Dist.Position=Vector2.new(botS.X,botS.Y+3); pack.Dist.Color=Color3.fromRGB(180,200,210); pack.Dist.Visible=on
-        else pack.Dist.Visible=false end
-        if B.Settings.ESP.Tracer and pack.Tracer then
-            local origin = bottom
-            local vp = Camera.ViewportSize
-            local org = B.Settings.ESP.TracerOrigin or "Bottom"
-            if org == "Center" then origin = Vector2.new(vp.X/2, vp.Y/2)
-            elseif org == "Top" then origin = Vector2.new(vp.X/2, 10)
-            elseif org == "Left" then origin = Vector2.new(10, vp.Y/2)
-            elseif org == "Right" then origin = Vector2.new(vp.X-10, vp.Y/2)
-            else origin = Vector2.new(vp.X/2, vp.Y)
-            end
-            pack.Tracer.From=origin; pack.Tracer.To=rootS; pack.Tracer.Color=B.Settings.ESP.TracerColor; pack.Tracer.Visible=on
-        else pack.Tracer.Visible=false end
-        if B.Settings.ESP.Skeleton and pack.Skel then
-            local idx=1
-            for _,pair in ipairs(BonePairs) do
-                if idx>#pack.Skel then break end
-                local a=char:FindFirstChild(pair[1]); local b=char:FindFirstChild(pair[2]); local line=pack.Skel[idx]
-                if a and b and a:IsA("BasePart") and b:IsA("BasePart") and line then
-                    local sa,oa=WorldToScreen(a.Position); local sb,ob=WorldToScreen(b.Position)
-                    if oa and ob then line.From=sa; line.To=sb; line.Color=color; line.Visible=true; idx=idx+1 end
-                end
-            end
-            for i=idx,#pack.Skel do pack.Skel[i].Visible=false end
-        elseif pack.Skel then for _,l in ipairs(pack.Skel) do l.Visible=false end end
-    end
-    -- NPC ESP
-    if B.Settings.ESP.NPCESP then
-        B.NPCDraw = B.NPCDraw or {}
-        local used = {}
-        local my = GetRoot(LocalPlayer.Character)
-        for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("Model") and not Players:GetPlayerFromCharacter(obj) then
-                local hum = obj:FindFirstChildOfClass("Humanoid")
-                local root = obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart
-                if hum and root and hum.Health > 0 then
-                    local dist = my and (my.Position-root.Position).Magnitude or 999
-                    if dist <= B.Settings.ESP.MaxDistance then
-                        local id = obj:GetFullName()
-                        used[id] = true
-                        if not B.NPCDraw[id] then
-                            local t = Drawing.new("Text")
-                            t.Size = 12; t.Center = true; t.Outline = true
-                            B.NPCDraw[id] = t
-                        end
-                        local sp, on = WorldToScreen(root.Position + Vector3.new(0, 2, 0))
-                        local d = B.NPCDraw[id]
-                        d.Text = string.format("[NPC] %s [%dm]", obj.Name, math.floor(dist))
-                        d.Position = sp
-                        d.Color = Color3.fromRGB(255, 180, 50)
-                        d.Visible = on
-                    end
-                end
-            end
-        end
-        for id, d in pairs(B.NPCDraw) do
-            if not used[id] then pcall(function() d:Remove() end); B.NPCDraw[id]=nil end
-        end
-    elseif B.NPCDraw then
-        for id, d in pairs(B.NPCDraw) do pcall(function() d:Remove() end) end
-        B.NPCDraw = {}
-    end
-end
-
--- SAFE HITBOX: fake part welded, never resize real Head/HRP
-local B_OriginalSizes = {} -- [userId] = {Head=Vector3, HRP=Vector3}
-
-local function RestorePlayerSizes(userId)
-    local data = B_OriginalSizes[userId]
-    if not data then return end
-    local player = Players:GetPlayerByUserId(userId)
-    if not player then B_OriginalSizes[userId]=nil return end
-    local char = player.Character
-    if not char then return end
-    if data.Head then
-        local h = char:FindFirstChild("Head")
-        if h and h:IsA("BasePart") then pcall(function() h.Size = data.Head; h.Transparency = data.HeadTrans or 0 end) end
-    end
-    if data.HRP then
-        local r = char:FindFirstChild("HumanoidRootPart")
-        if r and r:IsA("BasePart") then pcall(function() r.Size = data.HRP; r.Transparency = data.HRPTrans or 1 end) end
-    end
-end
-
-local function ClearAllHitboxes()
-    for uid,_ in pairs(B_OriginalSizes) do
-        RestorePlayerSizes(uid)
-    end
-    B_OriginalSizes = {}
-    for _,p in pairs(B.HitboxParts) do
-        pcall(function() if p and p.Parent then p:Destroy() end end)
-    end
-    B.HitboxParts = {}
-end
-
-local function UpdateHitbox()
-    if not B.Settings.Brutal.HitboxExpand then
-        if next(B_OriginalSizes) or next(B.HitboxParts) then
-            ClearAllHitboxes()
-        end
-        return
-    end
-    local size = math.clamp(tonumber(B.Settings.Brutal.HitboxSize) or 8, 2, 27)
-    local mode = B.Settings.Brutal.HitboxPart -- "Head" or "Body"
-    local alive = {}
-
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p == LocalPlayer then continue end
-        local char = GetChar(p)
-        if not IsAlive(char) then continue end
-        local head = GetHead(char)
-        local root = GetRoot(char)
-        if not root then continue end
-        alive[p.UserId] = true
-
-        -- store originals once
-        if not B_OriginalSizes[p.UserId] then
-            B_OriginalSizes[p.UserId] = {}
-            if head then
-                B_OriginalSizes[p.UserId].Head = head.Size
-                B_OriginalSizes[p.UserId].HeadTrans = head.Transparency
-            end
-            if root then
-                B_OriginalSizes[p.UserId].HRP = root.Size
-                B_OriginalSizes[p.UserId].HRPTrans = root.Transparency
-            end
-        end
-
-        local targetSize = Vector3.new(size, size, size)
-
-        if mode == "Head" and head then
-            -- enlarge HEAD only; restore HRP if was enlarged
-            pcall(function()
-                head.Size = targetSize
-                head.Transparency = 0.4
-                head.CanCollide = false
-                head.Massless = true
-            end)
-            -- restore body if we switched from body mode
-            if B_OriginalSizes[p.UserId].HRP and root then
-                pcall(function()
-                    root.Size = B_OriginalSizes[p.UserId].HRP
-                    root.Transparency = B_OriginalSizes[p.UserId].HRPTrans or 1
-                end)
-            end
-            -- visual marker ball (optional, non-blocking)
-            local marker = B.HitboxParts[p.UserId]
-            if not marker or not marker.Parent then
-                marker = Instance.new("Part")
-                marker.Name = "BX_HBMark"
-                marker.Shape = Enum.PartType.Ball
-                marker.Size = targetSize
-                marker.Transparency = 0.7
-                marker.Color = Color3.fromRGB(255, 50, 50)
-                marker.Material = Enum.Material.ForceField
-                marker.CanCollide = false
-                marker.CanQuery = false
-                marker.Massless = true
-                marker.Anchored = false
-                marker.Parent = char
-                local w = Instance.new("Weld")
-                w.Part0 = head
-                w.Part1 = marker
-                w.Parent = marker
-                B.HitboxParts[p.UserId] = marker
-            else
-                marker.Size = targetSize
-            end
-        else
-            -- BODY mode: enlarge HumanoidRootPart
-            if root then
-                pcall(function()
-                    root.Size = targetSize
-                    root.Transparency = 0.5
-                    root.CanCollide = false
-                    root.Massless = true
-                end)
-            end
-            -- restore head if switched
-            if B_OriginalSizes[p.UserId].Head and head then
-                pcall(function()
-                    head.Size = B_OriginalSizes[p.UserId].Head
-                    head.Transparency = B_OriginalSizes[p.UserId].HeadTrans or 0
-                end)
-            end
-            local marker = B.HitboxParts[p.UserId]
-            if not marker or not marker.Parent then
-                marker = Instance.new("Part")
-                marker.Name = "BX_HBMark"
-                marker.Shape = Enum.PartType.Ball
-                marker.Size = targetSize
-                marker.Transparency = 0.7
-                marker.Color = Color3.fromRGB(255, 80, 80)
-                marker.Material = Enum.Material.ForceField
-                marker.CanCollide = false
-                marker.CanQuery = false
-                marker.Massless = true
-                marker.Parent = char
-                local w = Instance.new("Weld")
-                w.Part0 = root
-                w.Part1 = marker
-                w.Parent = marker
-                B.HitboxParts[p.UserId] = marker
-            else
-                marker.Size = targetSize
-            end
-        end
-    end
-
-    for uid, _ in pairs(B_OriginalSizes) do
-        if not alive[uid] then
-            RestorePlayerSizes(uid)
-            B_OriginalSizes[uid] = nil
-            if B.HitboxParts[uid] then
-                pcall(function() B.HitboxParts[uid]:Destroy() end)
-                B.HitboxParts[uid] = nil
-            end
-        end
-    end
-end
-
-local function DoAutoKill()
-    if not B.Settings.Brutal.AutoKill then return end
-    local rate=math.clamp(B.Settings.Brutal.AttackSpeedVal,1,12)
-    if tick()-B.LastShoot<(1/rate) then return end
-    B.LastShoot=tick()
-    local target=GetNearestEnemy(); if not target then return end
-    local part=GetAimPart(GetChar(target)); if not part then return end
-    Camera.CFrame=CFrame.new(Camera.CFrame.Position, part.Position)
-    local tool=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-    if tool then
-        pcall(function() tool:Activate() end)
-        for _,r in ipairs(tool:GetDescendants()) do
-            if r:IsA("RemoteEvent") then
-                local n=r.Name:lower()
-                if n:find("fire") or n:find("shoot") or n:find("shot") then pcall(function() r:FireServer(part.Position) end) end
-            end
-        end
-    end
-end
-
-local function PatchWeapon()
-    local tool=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool"); if not tool then return end
-    if B.Settings.Brutal.AntiCooldown or B.Settings.Brutal.AttackSpeed then
-        for _,v in ipairs(tool:GetDescendants()) do
-            if v:IsA("NumberValue") or v:IsA("IntValue") then
-                local n=v.Name:lower()
-                if n:find("cool") or n:find("delay") or n:find("rate") then pcall(function() v.Value=0 end) end
-            end
-        end
-    end
-    if B.Settings.Brutal.InfiniteAmmo then
-        for _,v in ipairs(tool:GetDescendants()) do
-            if v:IsA("NumberValue") or v:IsA("IntValue") then
-                local n=v.Name:lower()
-                if n:find("ammo") or n:find("clip") or n:find("mag") then pcall(function() v.Value=999 end) end
-            end
-        end
-    end
-end
-
-AddConn(RunService.RenderStepped:Connect(function()
-    if not B.Unlocked then return end
-    UpdateAim(); UpdateESP(); UpdateHitbox(); UpdateFreeze()
-    if B.Settings.Brutal.Fly and B.FlyBV and B.FlyBG then
-        local cf=Camera.CFrame; local move=Vector3.zero
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then move=move+cf.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then move=move-cf.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then move=move-cf.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then move=move+cf.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move=move+Vector3.yAxis end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then move=move-Vector3.yAxis end
-        B.FlyBV.Velocity=move.Magnitude>0.1 and move.Unit*B.Settings.Brutal.FlySpeed or Vector3.zero
-        B.FlyBG.CFrame=cf
-    end
-end))
-
-AddConn(RunService.Heartbeat:Connect(function()
-    if not B.Unlocked then return end
-    if B.Settings.Brutal.AntiCooldown or B.Settings.Brutal.InfiniteAmmo or B.Settings.Brutal.AttackSpeed then PatchWeapon() end
-    if B.Settings.Brutal.AutoKill then DoAutoKill() end
-    if B.Settings.Brutal.FlyKillAll then B.DoFlyKillAll() end
-    if B.Settings.Brutal.SpinBot then B.DoSpinBot() end
-    if B.EnsureSelfTag then B.EnsureSelfTag() end
-    -- Speed fix: reapply every heartbeat so server reset does not stick
-    if B.Settings.Brutal.SpeedHack then
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            local sp = math.clamp(B.Settings.Brutal.SpeedValue or 24, 16, 100)
-            if hum.WalkSpeed < sp - 1 then hum.WalkSpeed = sp end
-        end
-    end
-    if B.Settings.Brutal.GodMode then
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum.Health < hum.MaxHealth then hum.Health = hum.MaxHealth end
-    end
-    if B.Settings.LocalCfg.ServerChat then
-        local head = GetHead(LocalPlayer.Character)
-        if head then
-            if not B.ChatBubble or not B.ChatBubble.Parent then
-                local bb = Instance.new("BillboardGui")
-                bb.Size = UDim2.fromOffset(180, 50)
-                bb.StudsOffset = Vector3.new(0, 3, 0)
-                bb.AlwaysOnTop = true
-                bb.Parent = head
-                local f = Instance.new("Frame")
-                f.Size = UDim2.fromScale(1,1)
-                f.BackgroundColor3 = Color3.fromRGB(255,255,255)
-                f.Parent = bb
-                Instance.new("UICorner", f).CornerRadius = UDim.new(0, 10)
-                local tl = Instance.new("TextLabel")
-                tl.Name = "Msg"
-                tl.Size = UDim2.new(1,-8,1,-4)
-                tl.Position = UDim2.fromOffset(4,2)
-                tl.BackgroundTransparency = 1
-                tl.Text = B.Settings.LocalCfg.ChatBubbleText or "Hello BAXTARA"
-                tl.TextColor3 = Color3.fromRGB(30,30,30)
-                tl.Font = Enum.Font.Gotham
-                tl.TextScaled = true
-                tl.Parent = f
-                B.ChatBubble = bb
-            else
-                local msg = B.ChatBubble:FindFirstChild("Msg", true)
-                if msg then msg.Text = B.Settings.LocalCfg.ChatBubbleText or "Hello BAXTARA" end
-            end
-        end
-    end
-    if B.Settings.LocalCfg.AutoRank and tick() % 5 < 0.05 then
-        for _, obj in ipairs(LocalPlayer:GetDescendants()) do
-            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
-                local n = obj.Name:lower()
-                if n:find("level") or n:find("xp") then pcall(function() obj.Value = obj.Value + 1 end) end
-            end
-        end
-    end
-    if B.HomeModuleStatus then
-        B.HomeModuleStatus.Text = string.format("Aim %s | ESP %s | Speed %s\nGod %s | Ghost %s | Spin %s",
-            B.Settings.Aim.Enabled and "ON" or "OFF",
-            B.Settings.ESP.Enabled and "ON" or "OFF",
-            B.Settings.Brutal.SpeedHack and "ON" or "OFF",
-            B.Settings.Brutal.GodMode and "ON" or "OFF",
-            B.Settings.Brutal.GhostMode and "ON" or "OFF",
-            B.Settings.Brutal.SpinBot and "ON" or "OFF")
-    end
-    -- VIP Kill Aura
-    if B.Settings.VIP.Unlocked and B.Settings.VIP.KillAura then
-        local my = GetRoot(LocalPlayer.Character)
-        if my then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and TeamOK(p) then
-                    local char = GetChar(p)
-                    local hum = char and char:FindFirstChildOfClass("Humanoid")
-                    local root = GetRoot(char)
-                    if hum and root and (my.Position - root.Position).Magnitude < 25 then
-                        pcall(function() hum:TakeDamage(5) end)
-                    end
-                end
-            end
-        end
-    end
-    -- VIP Magic bullet = force silent + aim
-    if B.Settings.VIP.Unlocked and B.Settings.VIP.MagicBullet then
-        B.Settings.Aim.SilentAim = true
-        local t = GetNearestEnemy()
-        if t then AimAt(t) end
-        local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if tool then pcall(function() tool:Activate() end) end
-    end
-    -- Fake disconnect visual
-    if B.Settings.VIP.Unlocked and B.Settings.VIP.FakeDisconnect then
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then
-                local r = GetRoot(GetChar(p))
-                if r then pcall(function() r.Anchored = true end) end
-            end
-        end
-    end
-    -- Gold ESP override
-    if B.Settings.VIP.Unlocked and B.Settings.VIP.GoldESP then
-        B.Settings.ESP.VisibleColor = Color3.fromRGB(255, 215, 0)
-        B.Settings.ESP.BoxColor = Color3.fromRGB(255, 200, 50)
-        B.Settings.ESP.TracerColor = Color3.fromRGB(255, 220, 80)
-    end
-    -- Aura particle
-    if B.Settings.VIP.Unlocked and B.Settings.VIP.AuraParticle then
-        local root = GetRoot(LocalPlayer.Character)
-        if root and (not B.AuraPart or not B.AuraPart.Parent) then
-            local a = Instance.new("Part")
-            a.Name = "BX_Aura"
-            a.Shape = Enum.PartType.Ball
-            a.Size = Vector3.new(6, 6, 6)
-            a.Transparency = 0.7
-            a.Color = Color3.fromRGB(255, 200, 50)
-            a.Material = Enum.Material.ForceField
-            a.CanCollide = false
-            a.Massless = true
-            a.Anchored = false
-            a.Parent = LocalPlayer.Character
-            local w = Instance.new("Weld")
-            w.Part0 = root
-            w.Part1 = a
-            w.Parent = a
-            B.AuraPart = a
-        end
-    elseif B.AuraPart then
-        pcall(function() B.AuraPart:Destroy() end)
-        B.AuraPart = nil
-    end
-    if B.StatsLabel then
-        local fps=60; pcall(function() fps=math.floor(1/RunService.RenderStepped:Wait()) end)
-        local el=math.floor(tick()-B.SessionStart)
-        B.StatsLabel.Text=string.format("FPS: %d | Players: %d | Time: %02d:%02d", fps, #Players:GetPlayers(), math.floor(el/60), el%60)
-    end
-end))
-
-AddConn(Players.PlayerRemoving:Connect(function(p)
-    DestroyPack(p.UserId)
-    if B.HitboxParts[p.UserId] then pcall(function() B.HitboxParts[p.UserId]:Destroy() end); B.HitboxParts[p.UserId]=nil end
-    B.FrozenParts[p.UserId]=nil
-end))
-
-AddConn(CoreGui.DescendantAdded:Connect(function(obj)
-    if not B.Settings.Protect.AntiKick then return end
-    -- IGNORE our own panel (Troll fake ban text was triggering hop)
-    if obj:IsDescendantOf(ScreenGui) then return end
-    local p = obj.Parent
-    while p do
-        if p.Name == "BAXTARA_X_CHEAT" or p.Name == "VIPPanel" then return end
-        if p == ScreenGui then return end
-        p = p.Parent
-    end
-    if obj:IsA("TextLabel") or obj:IsA("TextButton") then
-        local t=(obj.Text or ""):lower()
-        if t:find("suspicious") or t:find("banned") or t:find("exploiting") or t:find("kicked") or t:find("timedout") or t:find("dikeluarkan") then
-            if B.Settings.Protect.AutoHopOnFlag then
-                task.delay(0.5, function()
-                    pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
-                end)
-            end
-        end
-    end
-end))
-
--- Drag
-local dragging, dragStart, startPos
-Header.InputBegan:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-        dragging=true; dragStart=input.Position; startPos=Main.Position
-    end
-end)
-Header.InputEnded:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=false end
-end)
-AddConn(UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
-        local d=input.Position-dragStart
-        Main.Position=UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X, startPos.Y.Scale, startPos.Y.Offset+d.Y)
-    end
-end))
-
-local function ShowPanel()
-    Main.Visible=true
-    MainScale.Scale=0.7
-    TweenService:Create(MainScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), {Scale=1}):Play()
-end
-local function HidePanel()
-    local tw=TweenService:Create(MainScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale=0.6})
-    tw:Play(); tw.Completed:Wait(); Main.Visible=false
-end
-CloseBtn.MouseButton1Click:Connect(HidePanel)
-MinBtn.MouseButton1Click:Connect(HidePanel)
-
-AddConn(UserInputService.InputBegan:Connect(function(input,gp)
-    if gp then return end
-    if input.KeyCode==Enum.KeyCode.RightControl and B.Unlocked then
-        if Main.Visible then HidePanel() else ShowPanel() end
-    end
-end))
-
-local OpenBtn=New("TextButton", {Size=UDim2.fromOffset(46,46), Position=UDim2.new(1,-58,0.5,-23), BackgroundColor3=T.Accent, Text="BX", TextColor3=T.Background, Font=Enum.Font.GothamBlack, TextSize=14, Visible=false, ZIndex=20, AutoButtonColor=false}, ScreenGui)
-Round(OpenBtn, 23)
-B.OpenBtn = OpenBtn
-OpenBtn.MouseButton1Click:Connect(function() if Main.Visible then HidePanel() else ShowPanel() end end)
-
-
--- ========== VIP PANEL + SYSTEMS ==========
-B.FlyKillBV = nil
-B.SelfTagGui = nil
-B.VIPPanel = nil
-B.SpinAngle = 0
-B.VIPChatMessages = {}
-
-function B.EnsureSelfTag()
-    if not B.Settings.LocalCfg.SelfTag then
-        if B.SelfTagGui then pcall(function() B.SelfTagGui:Destroy() end) B.SelfTagGui=nil end
-        return
-    end
-    local char = LocalPlayer.Character
-    local head = char and GetHead(char)
-    if not head then return end
-    if not B.SelfTagGui or not B.SelfTagGui.Parent then
-        local bb = Instance.new("BillboardGui")
-        bb.Name = "BX_SelfTag"
-        bb.Size = UDim2.fromOffset(200, 40)
-        bb.StudsOffset = Vector3.new(0, 2.5, 0)
-        bb.AlwaysOnTop = true
-        bb.MaxDistance = 200
-        bb.Parent = head
-        local tl = Instance.new("TextLabel")
-        tl.Name = "Tag"
-        tl.Size = UDim2.fromScale(1,1)
-        tl.BackgroundTransparency = 1
-        tl.Text = B.Settings.LocalCfg.SelfTagText or "BAXTARA"
-        tl.Font = Enum.Font.GothamBlack
-        tl.TextScaled = true
-        tl.TextStrokeTransparency = 0.4
-        tl.Parent = bb
-        B.SelfTagGui = bb
-    end
-    local tl = B.SelfTagGui:FindFirstChild("Tag")
-    if tl then
-        tl.Text = B.Settings.LocalCfg.SelfTagText or "BAXTARA"
-        if B.Settings.LocalCfg.SelfTagRainbow then
-            local h = (tick() * 0.4) % 1
-            tl.TextColor3 = Color3.fromHSV(h, 1, 1)
-        else
-            tl.TextColor3 = Color3.fromRGB(255, 215, 0)
-        end
-    end
-end
-
-function B.DoFlyKillAll()
-    if not B.Settings.Brutal.FlyKillAll then return end
-    local char = LocalPlayer.Character
-    local root = char and GetRoot(char)
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not root or not hum then return end
-    hum.PlatformStand = true
-    if not B.FlyKillBV or not B.FlyKillBV.Parent then
-        if B.FlyKillBV then pcall(function() B.FlyKillBV:Destroy() end) end
-        B.FlyKillBV = Instance.new("BodyVelocity")
-        B.FlyKillBV.MaxForce = Vector3.new(9e4, 9e4, 9e4)
-        B.FlyKillBV.Velocity = Vector3.zero
-        B.FlyKillBV.Parent = root
-    end
-    -- hover high
-    local hover = root.Position + Vector3.new(0, 2, 0)
-    if root.Position.Y < (Workspace.FallenPartsDestroyHeight + 500) then
-        -- lift to ~40 studs above current ground-ish
-        B.FlyKillBV.Velocity = Vector3.new(0, 35, 0)
-        if root.Position.Y > 80 then
-            B.FlyKillBV.Velocity = Vector3.zero
-        end
-    end
-    -- TP enemies in front
-    local front = root.CFrame * CFrame.new(0, 0, -12)
-    local i = 0
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and TeamOK(p) then
-            local er = GetRoot(GetChar(p))
-            if er and IsAlive(GetChar(p)) then
-                i = i + 1
-                pcall(function()
-                    er.CFrame = front * CFrame.new((i % 4) * 3 - 4.5, 0, math.floor(i / 4) * 3)
-                end)
-            end
-        end
-    end
-    -- auto shoot
-    local tool = char:FindFirstChildOfClass("Tool")
-    if tool then pcall(function() tool:Activate() end) end
-end
-
-function B.DoSpinBot()
-    if not B.Settings.Brutal.SpinBot then return end
-    local root = GetRoot(LocalPlayer.Character)
-    if not root then return end
-    local spd = math.clamp(B.Settings.Brutal.SpinSpeed or 40, 1, 120)
-    B.SpinAngle = (B.SpinAngle + spd * 0.05) % 360
-    local pos = root.Position
-    root.CFrame = CFrame.new(pos) * CFrame.Angles(0, math.rad(B.SpinAngle), 0)
-end
-
--- VIP Panel builder
-function B.OpenVIPPanel()
-    if B.VIPPanel and B.VIPPanel.Parent then
-        B.VIPPanel.Visible = true
-        return
-    end
-    local vp = New("Frame", {
-        Name = "VIPPanel",
-        Size = UDim2.fromOffset(420, 480),
-        Position = UDim2.new(0.5, -210, 0.5, -240),
-        BackgroundColor3 = Color3.fromRGB(8, 6, 18),
+    local button = make("TextButton", {
+        Size = width,
+        BackgroundColor3 = active and Theme.Raised or Theme.Surface,
+        Text = "",
+        AutoButtonColor = false,
         BorderSizePixel = 0,
-        ZIndex = 40,
-        ClipsDescendants = true,
-    }, ScreenGui)
-    Round(vp, 14)
-    local vst = New("UIStroke", {Color = Color3.fromRGB(255, 200, 50), Thickness = 1.5, Transparency = 0.2}, vp)
-    -- gold pulse
-    task.spawn(function()
-        while vp.Parent do
-            TweenService:Create(vst, TweenInfo.new(1.2), {Color = Color3.fromRGB(255, 230, 120)}):Play()
-            task.wait(1.2)
-            if not vp.Parent then break end
-            TweenService:Create(vst, TweenInfo.new(1.2), {Color = Color3.fromRGB(255, 180, 40)}):Play()
-            task.wait(1.2)
+        LayoutOrder = order,
+        ZIndex = 7,
+    }, parent)
+    if style == "Galaxy" then
+        corner(button, 99)
+        outline(button, active and Theme.Accent or Theme.Border, active and 1.5 or 1, active and 0.12 or 0.72)
+        if horizontal then
+            local planet = make("Frame", {
+                Position = UDim2.fromOffset(8, 8),
+                Size = UDim2.fromOffset(21, 21),
+                BackgroundColor3 = active and Theme.Accent or Theme.Element,
+                BorderSizePixel = 0,
+                ZIndex = 8,
+            }, button)
+            corner(planet, 99)
+            addGradient(planet, active and Theme.Accent2 or Theme.Element, Theme.Accent, 35)
+            text(planet, icon, 9, Theme.Text, Enum.Font.GothamBold,
+                UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
+            text(button, page, 8, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
+                UDim2.fromOffset(35, 0), UDim2.new(1, -40, 1, 0))
+        else
+            local planet = make("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, -5),
+                Size = UDim2.fromOffset(23, 23),
+                BackgroundColor3 = active and Theme.Accent or Theme.Element,
+                BorderSizePixel = 0,
+                ZIndex = 8,
+            }, button)
+            corner(planet, 99)
+            addGradient(planet, active and Theme.Accent2 or Theme.Element, Theme.Accent, 35)
+            text(planet, icon, 11, Theme.Text, Enum.Font.GothamBold,
+                UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
+            text(button, page, 7, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
+                UDim2.new(0, 0, 1, -15), UDim2.new(1, 0, 0, 12), Enum.TextXAlignment.Center)
+            if active then
+                local ring = make("Frame", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.fromScale(0.5, 0.42),
+                    Size = UDim2.fromOffset(39, 39),
+                    BackgroundTransparency = 1,
+                    ZIndex = 7,
+                }, button)
+                corner(ring, 99)
+                outline(ring, Theme.Accent2, 1, 0.28)
+            end
         end
+    elseif style == "Lego" then
+        corner(button, 4)
+        outline(button, active and Theme.Accent or Theme.Border, 2, active and 0.08 or 0.4)
+        local studs = make("Frame", {
+            Position = UDim2.fromOffset(7, 5),
+            Size = UDim2.fromOffset(10, 7),
+            BackgroundColor3 = active and Theme.Accent or Theme.Accent2,
+            BorderSizePixel = 0,
+            ZIndex = 8,
+        }, button)
+        corner(studs, 3)
+        text(button, icon .. "  " .. page, 8, Theme.Text, Enum.Font.GothamBlack,
+            UDim2.fromOffset(8, horizontal and 12 or 13),
+            UDim2.new(1, -12, 1, horizontal and -12 or -13), horizontal and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left)
+    elseif style == "Eid" then
+        corner(button, 13)
+        outline(button, active and Theme.Accent or Theme.Border, active and 1.6 or 1, active and 0.12 or 0.55)
+        text(button, horizontal and "◆" or icon, horizontal and 12 or 15, Theme.Accent, Enum.Font.GothamBold,
+            UDim2.fromOffset(horizontal and 7 or 9, 0), UDim2.fromOffset(25, horizontal and 36 or 43), Enum.TextXAlignment.Center)
+        text(button, page, 8, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
+            UDim2.fromOffset(horizontal and 32 or 38, 0), UDim2.new(1, horizontal and -36 or -42, 1, 0))
+    else
+        corner(button, 9)
+        outline(button, active and Theme.Border or Theme.Surface, 1, active and 0.38 or 1)
+        if active then
+            make("Frame", {
+                Position = UDim2.fromOffset(0, 8),
+                Size = UDim2.new(0, 3, 1, -16),
+                BackgroundColor3 = Theme.Accent,
+                BorderSizePixel = 0,
+                ZIndex = 9,
+            }, button)
+        end
+        text(button, icon, 14, active and Theme.Accent or Theme.Muted, Enum.Font.GothamBold,
+            UDim2.fromOffset(9, 0), UDim2.fromOffset(24, 43), Enum.TextXAlignment.Center)
+        text(button, page, 8, active and Theme.Text or Theme.Muted, Enum.Font.GothamSemibold,
+            UDim2.fromOffset(37, 0), UDim2.new(1, -41, 1, 0))
+    end
+
+    button.Activated:Connect(function()
+        State.SelectedPage = page
+        renderUI()
+    end)
+    return button
+end
+
+renderPage = function()
+    if not Content then return end
+    local renderer = PageRenderers[State.SelectedPage] or pageOverview
+    renderer()
+end
+
+renderUI = function()
+    if State.Destroyed then return end
+    Dragging = false
+    DragInputPosition = nil
+    DragStartPosition = nil
+    ActiveSlider = nil
+    Theme = Themes[State.Theme] or Themes.Galaxy
+    OrbitNodes = {}
+    StarNodes = {}
+    HeaderKetupatNodes = {}
+    PageKetupatNodes = {}
+
+    if Main and Main.Parent then Main:Destroy() end
+    if FloatingButton and FloatingButton.Parent then FloatingButton:Destroy() end
+
+    local camera = Workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(900, 700)
+    local mobile = viewport.X < 680
+    local mainSize = mobile and UDim2.new(0.97, 0, 0.91, 0) or UDim2.new(0.88, 0, 0.84, 0)
+
+    Main = make("Frame", {
+        Name = "MainPanel",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = mainSize,
+        BackgroundColor3 = Theme.Background,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        ZIndex = 2,
+    }, ScreenGui)
+    corner(Main, Theme.Style == "Lego" and 7 or (Theme.Style == "Galaxy" and 22 or Theme.Radius + 3))
+    outline(Main, Theme.Border, Theme.Style == "Lego" and 3 or 1.2, Theme.Style == "Modern" and 0.55 or 0.18)
+    addGradient(Main, Theme.Background, Theme.Surface, 90)
+    make("UISizeConstraint", {
+        MinSize = Vector2.new(310, 420),
+        MaxSize = Vector2.new(980, 720),
+    }, Main)
+
+    local headerHeight = 60
+    local header = make("Frame", {
+        Size = UDim2.new(1, 0, 0, headerHeight),
+        BackgroundColor3 = Theme.Surface,
+        BorderSizePixel = 0,
+        ZIndex = 5,
+    }, Main)
+    if Theme.Style == "Lego" then
+        corner(header, 5)
+    else
+        corner(header, Theme.Radius)
+    end
+
+    local logo = make("Frame", {
+        Position = UDim2.fromOffset(14, 9),
+        Size = UDim2.fromOffset(40, 40),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+        ZIndex = 7,
+    }, header)
+    corner(logo, Theme.Style == "Galaxy" and 99 or (Theme.Style == "Lego" and 5 or 12))
+    addGradient(logo, Theme.Accent, Theme.Accent2, 40)
+    text(logo, "BX", 13, Theme.Background, Enum.Font.GothamBlack,
+        UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
+    text(header, "BAXTARA X", 14, Theme.Text, Enum.Font.GothamBlack,
+        UDim2.fromOffset(64, 9), UDim2.new(0.58, -60, 0, 22))
+    text(header, Theme.Name, 8, Theme.Muted, Enum.Font.GothamBold,
+        UDim2.fromOffset(65, 31), UDim2.new(0.58, -60, 0, 14))
+
+    local close = make("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -12, 0.5, 0),
+        Size = UDim2.fromOffset(32, 30),
+        BackgroundColor3 = Theme.Raised,
+        Text = "×",
+        TextColor3 = Theme.Danger,
+        TextSize = 21,
+        Font = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+        ZIndex = 8,
+    }, header)
+    corner(close, Theme.Style == "Lego" and 5 or 10)
+    close.Activated:Connect(function()
+        State.PanelVisible = false
+        if Main then Main.Visible = false end
+        if FloatingButton then FloatingButton.Visible = true end
+    end)
+    local minimize = make("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -50, 0.5, 0),
+        Size = UDim2.fromOffset(28, 30),
+        BackgroundColor3 = Theme.Raised,
+        Text = "−",
+        TextColor3 = Theme.Accent,
+        TextSize = 18,
+        Font = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+        ZIndex = 8,
+    }, header)
+    corner(minimize, Theme.Style == "Lego" and 5 or 10)
+    minimize.Activated:Connect(function()
+        State.PanelVisible = false
+        Main.Visible = false
+        if FloatingButton then FloatingButton.Visible = true end
     end)
 
-    local vh = New("Frame", {Size = UDim2.new(1,0,0,44), BackgroundColor3 = Color3.fromRGB(20, 14, 40), BorderSizePixel = 0, ZIndex = 41}, vp)
-    Round(vh, 14)
-    New("TextLabel", {Position = UDim2.fromOffset(12, 6), Size = UDim2.fromOffset(280, 20), BackgroundTransparency = 1, Text = "BAXTARA VIP  ·  PREMIUM", TextColor3 = Color3.fromRGB(255, 215, 0), Font = Enum.Font.GothamBlack, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 42}, vh)
-    New("TextLabel", {Position = UDim2.fromOffset(12, 24), Size = UDim2.fromOffset(200, 14), BackgroundTransparency = 1, Text = "INJECTED MODULE", TextColor3 = Color3.fromRGB(180, 160, 100), Font = Enum.Font.Code, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 42}, vh)
-    local vclose = New("TextButton", {Position = UDim2.new(1, -36, 0.5, -12), Size = UDim2.fromOffset(24, 24), BackgroundColor3 = Color3.fromRGB(60, 20, 30), Text = "X", TextColor3 = Color3.fromRGB(255, 120, 120), Font = Enum.Font.GothamBold, TextSize = 12, ZIndex = 42, AutoButtonColor = false}, vh)
-    Round(vclose, 6)
-    vclose.MouseButton1Click:Connect(function() vp.Visible = false end)
+    buildThemeDecor(header, Main, mobile)
 
-    local scroll = New("ScrollingFrame", {
-        Position = UDim2.fromOffset(8, 50),
-        Size = UDim2.new(1, -16, 1, -58),
+    local navHorizontal = mobile or Theme.Style == "Lego"
+    local navFrame
+    if navHorizontal then
+        navFrame = make("ScrollingFrame", {
+            Position = UDim2.fromOffset(10, 68),
+            Size = UDim2.new(1, -20, 0, 46),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ScrollBarThickness = 0,
+            ScrollingDirection = Enum.ScrollingDirection.X,
+            CanvasSize = UDim2.new(0, #PageNames * 120, 0, 0),
+            ZIndex = 6,
+        }, Main)
+        make("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            Padding = UDim.new(0, 6),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }, navFrame)
+    else
+        local navWidth = Theme.Style == "Galaxy" and 88 or (Theme.Style == "Eid" and 136 or 118)
+        navFrame = make("Frame", {
+            Position = UDim2.fromOffset(12, 74),
+            Size = UDim2.new(0, navWidth, 1, -88),
+            BackgroundColor3 = Theme.Surface,
+            BorderSizePixel = 0,
+            ZIndex = 6,
+        }, Main)
+        corner(navFrame, Theme.Style == "Galaxy" and 22 or (Theme.Style == "Eid" and 18 or 11))
+        outline(navFrame, Theme.Border, 1, 0.72)
+        make("UIListLayout", {
+            Padding = UDim.new(0, Theme.Style == "Galaxy" and 7 or 6),
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }, navFrame)
+        make("UIPadding", {
+            PaddingTop = UDim.new(0, 9),
+            PaddingLeft = UDim.new(0, 5),
+            PaddingRight = UDim.new(0, 5),
+        }, navFrame)
+        if Theme.Style == "Galaxy" then
+            text(navFrame, "ORBIT", 8, Theme.Accent2, Enum.Font.GothamBlack,
+                UDim2.new(0, 0, 1, -23), UDim2.new(1, 0, 0, 14), Enum.TextXAlignment.Center)
+        elseif Theme.Style == "Eid" then
+            text(navFrame, "☾  MENU", 8, Theme.Accent, Enum.Font.GothamBold,
+                UDim2.new(0, 8, 1, -24), UDim2.new(1, -16, 0, 15))
+        else
+            text(navFrame, "WORKSPACE", 7, Theme.Muted, Enum.Font.GothamBold,
+                UDim2.new(0, 8, 1, -23), UDim2.new(1, -16, 0, 14))
+        end
+    end
+
+    for index, page in ipairs(PageNames) do
+        makeNavButton(navFrame, page.Name, page.Icon, navHorizontal, index)
+    end
+
+    local contentX, contentY, contentSize
+    if navHorizontal then
+        contentX, contentY = 12, 123
+        contentSize = UDim2.new(1, -24, 1, -134)
+    else
+        local navWidth = Theme.Style == "Galaxy" and 88 or (Theme.Style == "Eid" and 136 or 118)
+        contentX, contentY = navWidth + 24, 74
+        contentSize = UDim2.new(1, -navWidth - 36, 1, -88)
+    end
+    Content = make("ScrollingFrame", {
+        Position = UDim2.fromOffset(contentX, contentY),
+        Size = contentSize,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ScrollBarThickness = 3,
-        ScrollBarImageColor3 = Color3.fromRGB(255, 200, 50),
-        CanvasSize = UDim2.new(0,0,0,900),
-        ZIndex = 41,
-    }, vp)
+        ScrollBarImageColor3 = Theme.Accent,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ZIndex = 5,
+    }, Main)
 
-    local function VCard(title, y, h)
-        local c = New("Frame", {Position = UDim2.fromOffset(0, y), Size = UDim2.new(1, -4, 0, h), BackgroundColor3 = Color3.fromRGB(18, 12, 32), BorderSizePixel = 0, ZIndex = 42}, scroll)
-        Round(c, 10)
-        New("TextLabel", {Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -16, 0, 16), BackgroundTransparency = 1, Text = title, TextColor3 = Color3.fromRGB(255, 210, 80), Font = Enum.Font.GothamBold, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 43}, c)
-        return c
+    FloatingButton = make("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -16, 0.62, 0),
+        Size = UDim2.fromOffset(52, 52),
+        BackgroundColor3 = Theme.Accent,
+        Text = "BX",
+        TextColor3 = Theme.Background,
+        TextSize = 14,
+        Font = Enum.Font.GothamBlack,
+        AutoButtonColor = false,
+        BorderSizePixel = 0,
+        Visible = not State.PanelVisible,
+        ZIndex = 30,
+    }, ScreenGui)
+    corner(FloatingButton, Theme.Style == "Lego" and 7 or 99)
+    outline(FloatingButton, Theme.Accent2, Theme.Style == "Lego" and 2 or 1.5, 0.18)
+    FloatingButton.Activated:Connect(function()
+        State.PanelVisible = true
+        if Main then
+            Main.Visible = true
+            local scale = make("UIScale", { Scale = 0.94 }, Main)
+            tween(scale, 0.23, { Scale = 1 }, Enum.EasingStyle.Back)
+        end
+        FloatingButton.Visible = false
+    end)
+
+    renderPage()
+
+    if not IntroPlayed and State.PanelVisible then
+        IntroPlayed = true
+        local scale = make("UIScale", { Scale = 0.94 }, Main)
+        tween(scale, 0.34, { Scale = 1 }, Enum.EasingStyle.Back)
+        tween(Main, 0.28, { BackgroundTransparency = 0 }, Enum.EasingStyle.Quart)
     end
-    local function VToggle(parent, y, title, key)
-        local row = New("Frame", {Position = UDim2.fromOffset(8, y), Size = UDim2.new(1, -16, 0, 28), BackgroundTransparency = 1, ZIndex = 43}, parent)
-        New("TextLabel", {Size = UDim2.new(1, -50, 1, 0), BackgroundTransparency = 1, Text = title, TextColor3 = Color3.fromRGB(230, 220, 200), Font = Enum.Font.Gotham, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 44}, row)
-        local sw = New("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.fromOffset(36, 18), BackgroundColor3 = B.Settings.VIP[key] and Color3.fromRGB(255, 200, 50) or Color3.fromRGB(50, 45, 60), ZIndex = 44}, row)
-        Round(sw, 18)
-        local dot = New("Frame", {Position = B.Settings.VIP[key] and UDim2.new(1, -16, 0.5, -6) or UDim2.new(0, 2, 0.5, -6), Size = UDim2.fromOffset(12, 12), BackgroundColor3 = Color3.fromRGB(255, 255, 255), ZIndex = 45}, sw)
-        Round(dot, 12)
-        local btn = New("TextButton", {Size = UDim2.fromScale(1,1), BackgroundTransparency = 1, Text = "", ZIndex = 46}, sw)
-        btn.MouseButton1Click:Connect(function()
-            B.Settings.VIP[key] = not B.Settings.VIP[key]
-            local on = B.Settings.VIP[key]
-            TweenService:Create(sw, TweenInfo.new(0.12), {BackgroundColor3 = on and Color3.fromRGB(255, 200, 50) or Color3.fromRGB(50, 45, 60)}):Play()
-            TweenService:Create(dot, TweenInfo.new(0.12), {Position = on and UDim2.new(1, -16, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)}):Play()
-            if key == "StreamerMode" and on then
-                Main.Visible = false
-                Notify("VIP", "Streamer Mode — panel hidden (RightCtrl to show main)")
-            end
-            if key == "RealityWarp" then
-                if on then
-                    Lighting.Ambient = Color3.fromRGB(255, 0, 200)
-                    Lighting.ColorShift_Top = Color3.fromRGB(0, 255, 200)
-                    Lighting.Brightness = 3
-                else
-                    Lighting.Ambient = Color3.fromRGB(140, 140, 140)
-                    Lighting.ColorShift_Top = Color3.new(0,0,0)
-                    Lighting.Brightness = 1
-                end
-            end
-            if key == "SkyVIP" and on then
-                Lighting.ClockTime = 0
-                Lighting.Brightness = 1.5
-                Lighting.Ambient = Color3.fromRGB(20, 10, 40)
-                Lighting.OutdoorAmbient = Color3.fromRGB(40, 20, 80)
-            end
-        end)
-    end
-
-    local c1 = VCard("COMBAT DEWA", 0, 130)
-    VToggle(c1, 28, "Magic Bullet / Silent", "MagicBullet")
-    VToggle(c1, 56, "Kill Aura", "KillAura")
-    VToggle(c1, 84, "Backstab Teleport", "BackstabTP")
-
-    local c2 = VCard("MOVEMENT NINJA", 140, 150)
-    VToggle(c2, 28, "Void Walk", "VoidWalk")
-    VToggle(c2, 56, "Ninja Dash (press Q)", "NinjaDash")
-    VToggle(c2, 84, "Wall Cling", "WallCling")
-    VToggle(c2, 112, "Full Fly boost", "VoidWalk") -- alias ok
-
-    local c3 = VCard("TROLL / CHAOS", 300, 150)
-    VToggle(c3, 28, "Fake Disconnect (local)", "FakeDisconnect")
-    VToggle(c3, 56, "Reality Warp", "RealityWarp")
-    VToggle(c3, 84, "Meteor Rain (FX)", "MeteorRain")
-    VToggle(c3, 112, "Aura Particle", "AuraParticle")
-
-    local c4 = VCard("KOSMETIK VIP", 460, 130)
-    VToggle(c4, 28, "Gold / Rainbow ESP", "GoldESP")
-    VToggle(c4, 56, "VIP Sky Night", "SkyVIP")
-    VToggle(c4, 84, "Chat Tag [VIP]", "ChatTag")
-
-    local c5 = VCard("STREAMER / UTILITY", 600, 100)
-    VToggle(c5, 28, "Streamer Mode (hide UI)", "StreamerMode")
-    VToggle(c5, 56, "Spoof Name local", "SpoofName")
-
-    -- VIP CHAT
-    local c6 = VCard("VIP GLOBAL CHAT", 710, 160)
-    local chatBox = New("TextBox", {Position = UDim2.fromOffset(8, 30), Size = UDim2.new(1, -16, 0, 24), BackgroundColor3 = Color3.fromRGB(30, 22, 50), Text = "", PlaceholderText = "Pesan VIP...", PlaceholderColor3 = Color3.fromRGB(120, 100, 140), TextColor3 = Color3.fromRGB(255, 240, 200), Font = Enum.Font.Code, TextSize = 11, ZIndex = 44}, c6)
-    Round(chatBox, 6)
-    local chatLog = New("TextLabel", {Position = UDim2.fromOffset(8, 58), Size = UDim2.new(1, -16, 0, 70), BackgroundColor3 = Color3.fromRGB(12, 8, 24), Text = "[VIP] Chat lokal aktif.\nSesama BAXTARA di device ini terlihat.", TextColor3 = Color3.fromRGB(200, 180, 120), Font = Enum.Font.Code, TextSize = 9, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true, ZIndex = 44}, c6)
-    Round(chatLog, 6)
-    local sendBtn = New("TextButton", {Position = UDim2.fromOffset(8, 132), Size = UDim2.new(1, -16, 0, 22), BackgroundColor3 = Color3.fromRGB(180, 140, 40), Text = "KIRIM", TextColor3 = Color3.fromRGB(20, 15, 5), Font = Enum.Font.GothamBold, TextSize = 10, ZIndex = 44, AutoButtonColor = false}, c6)
-    Round(sendBtn, 6)
-    sendBtn.MouseButton1Click:Connect(function()
-        local msg = chatBox.Text
-        if msg and #msg > 0 then
-            local line = string.format("[%s]: %s", LocalPlayer.Name, msg)
-            table.insert(B.VIPChatMessages, line)
-            if #B.VIPChatMessages > 8 then table.remove(B.VIPChatMessages, 1) end
-            chatLog.Text = table.concat(B.VIPChatMessages, "\n")
-            chatBox.Text = ""
-            -- try MessagingService for cross-server (may fail on client)
-            pcall(function()
-                local MS = game:GetService("MessagingService")
-                MS:PublishAsync("BAXTARA_VIP_CHAT", {from = LocalPlayer.Name, text = msg})
-            end)
-        end
-    end)
-    pcall(function()
-        local MS = game:GetService("MessagingService")
-        MS:SubscribeAsync("BAXTARA_VIP_CHAT", function(data)
-            local p = data.Data
-            if p and p.from and p.text then
-                table.insert(B.VIPChatMessages, string.format("[%s]: %s", p.from, p.text))
-                if #B.VIPChatMessages > 8 then table.remove(B.VIPChatMessages, 1) end
-                if chatLog and chatLog.Parent then chatLog.Text = table.concat(B.VIPChatMessages, "\n") end
-            end
-        end)
-    end)
-
-    -- drag VIP panel
-    local vd, vs, vp0 = false, nil, nil
-    vh.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            vd = true; vs = i.Position; vp0 = vp.Position
-        end
-    end)
-    vh.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then vd = false end
-    end)
-    AddConn(UserInputService.InputChanged:Connect(function(i)
-        if vd and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-            local d = i.Position - vs
-            vp.Position = UDim2.new(vp0.X.Scale, vp0.X.Offset + d.X, vp0.Y.Scale, vp0.Y.Offset + d.Y)
-        end
-    end))
-
-    B.VIPPanel = vp
-    -- entry anim
-    vp.Size = UDim2.fromOffset(420, 0)
-    TweenService:Create(vp, TweenInfo.new(0.35, Enum.EasingStyle.Back), {Size = UDim2.fromOffset(420, 480)}):Play()
+    Main.Visible = State.PanelVisible
+    if bindHeaderDrag then bindHeaderDrag() end
 end
 
--- Ninja dash key
-AddConn(UserInputService.InputBegan:Connect(function(input, gp)
-    if gp or not B.Settings.VIP.Unlocked then return end
-    if B.Settings.VIP.NinjaDash and input.KeyCode == Enum.KeyCode.Q then
-        local root = GetRoot(LocalPlayer.Character)
-        if root then
-            root.CFrame = root.CFrame + Camera.CFrame.LookVector * 40
+-- Dragging is limited to the header so page controls remain usable.
+bindHeaderDrag = function()
+    local header = Main and Main:FindFirstChildWhichIsA("Frame")
+    if not header then return end
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            Dragging = true
+            DragInputPosition = input.Position
+            DragStartPosition = Main.Position
         end
-    end
-    if B.Settings.VIP.BackstabTP and input.KeyCode == Enum.KeyCode.E then
-        local best, bd = nil, 999
-        local my = GetRoot(LocalPlayer.Character)
-        if not my then return end
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then
-                local r = GetRoot(GetChar(p))
-                if r then
-                    local d = (my.Position - r.Position).Magnitude
-                    if d < bd then bd = d; best = r end
-                end
-            end
+    end)
+    header.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            Dragging = false
         end
-        if best then
-            my.CFrame = best.CFrame * CFrame.new(0, 0, 3)
-        end
-    end
-end))
-
-local function AfterUnlock()
-    B.Unlocked=true
-    SaveKeyUnlock()
-    KeyFrame.Visible=false
-    LoadFrame.Visible=true
-    for _,pct in ipairs({30,60,90,100}) do
-        LoadBar:TweenSize(UDim2.new(pct/100,0,1,0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
-        LoadPct.Text=pct.."%"
-        task.wait(0.28)
-    end
-    task.wait(0.1)
-    LoadFrame.Visible=false
-    OpenBtn.Visible=UserInputService.TouchEnabled
-    SelectTab("Home")
-    ShowPanel()
-    Notify("BAXTARA X CHEAT", "Cyber Premium loaded")
+    end)
 end
 
-VerifyBtn.MouseButton1Click:Connect(function()
-    local input=(KeyBox.Text or ""):gsub("^%s+",""):gsub("%s+$","")
-    if input:upper()==ACCESS_KEY:upper() then
-        StatusLbl.TextColor3=T.Accent; StatusLbl.Text="ACCESS GRANTED"
-        task.wait(0.25)
-        AfterUnlock()
-    else
-        StatusLbl.TextColor3=T.Red; StatusLbl.Text="INVALID KEY"
+renderUI()
+bindHeaderDrag()
+
+UserInputService.InputChanged:Connect(function(input)
+    if ActiveSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        ActiveSlider.Update(input.Position.X)
+    end
+    if Dragging and DragInputPosition and DragStartPosition and Main and Main.Parent then
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            local delta = input.Position - DragInputPosition
+            Main.Position = UDim2.new(
+                DragStartPosition.X.Scale,
+                DragStartPosition.X.Offset + delta.X,
+                DragStartPosition.Y.Scale,
+                DragStartPosition.Y.Offset + delta.Y
+            )
+        end
     end
 end)
 
--- Auto unlock if saved
-if LoadKeyUnlock() then
-    task.spawn(function()
-        task.wait(0.15)
-        AfterUnlock()
-    end)
-end
-if getgenv().BAXTARA_VIP == true then
-    B.Settings.VIP.Unlocked = true
-end
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        ActiveSlider = nil
+        Dragging = false
+    end
+end)
 
-print("[BAXTARA X CHEAT] +FlyKillAll +SpinBot +SelfTag +VIP(NUGI) panel/chat")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        State.PanelVisible = not State.PanelVisible
+        if Main then Main.Visible = State.PanelVisible end
+        if FloatingButton then FloatingButton.Visible = not State.PanelVisible end
+    end
+end)
 
+RunService.RenderStepped:Connect(function(deltaTime)
+    if State.Destroyed then return end
+    FrameCounter = FrameCounter + 1
+    local now = os.clock()
+    if now - LastStatsRefresh >= 1 then
+        FPS = math.floor(FrameCounter / math.max(now - LastStatsRefresh, 0.001) + 0.5)
+        FrameCounter = 0
+        LastStatsRefresh = now
+        if FpsValue and FpsValue.Parent then FpsValue.Text = tostring(FPS) end
+        if PlayerValue and PlayerValue.Parent then PlayerValue.Text = tostring(#Players:GetPlayers()) end
+        if SessionValue and SessionValue.Parent then
+            local elapsed = math.floor(now - SessionStart)
+            SessionValue.Text = string.format("%02d:%02d", math.floor(elapsed / 60), elapsed % 60)
+        end
+    end
 
-print("[BAXTARA X CHEAT v5.5] Cyber UI | Safe hitbox | Freeze | Key save | Sky fix | NUGI CENEL")
+    if State.ReduceMotion or not State.Ambient then return end
+    local phase = now * State.AnimationSpeed
+    if Theme.Style == "Galaxy" and State.StarParticles then
+        for index, item in ipairs(StarNodes) do
+            if item.Object and item.Object.Parent then
+                item.Object.BackgroundTransparency = math.clamp(0.94 - ((math.sin(phase * 1.6 + item.Phase) + 1) * 0.5 * State.Glow), 0.12, 0.98)
+            end
+        end
+    end
+    if Theme.Style == "Galaxy" and State.OrbitMotion then
+        for _, item in ipairs(OrbitNodes) do
+            if item.Root and item.Root.Parent and item.Planet and item.Planet.Parent then
+                local angle = phase * 0.9 + item.Phase
+                local x = 0.5 + math.cos(angle) * item.Radius
+                local y = 0.5 + math.sin(angle) * item.Radius * 0.48
+                item.Planet.Position = UDim2.fromScale(x, y)
+            end
+        end
+    end
+    if Theme.Style == "Eid" and State.KetupatMotion then
+        local allKetupats = {}
+        for _, object in ipairs(HeaderKetupatNodes) do table.insert(allKetupats, object) end
+        for _, object in ipairs(PageKetupatNodes) do table.insert(allKetupats, object) end
+        for index, object in ipairs(allKetupats) do
+            if object and object.Parent then
+                object.Rotation = math.sin(phase * 0.9 + index) * 4
+            end
+        end
+    end
+end)
+
+Players.PlayerAdded:Connect(function()
+    if PlayerValue and PlayerValue.Parent then
+        PlayerValue.Text = tostring(#Players:GetPlayers())
+    end
+end)
+Players.PlayerRemoving:Connect(function()
+    if PlayerValue and PlayerValue.Parent then
+        PlayerValue.Text = tostring(math.max(0, #Players:GetPlayers() - 1))
+    end
+end)
+
+ScreenGui.Destroying:Connect(function()
+    State.Destroyed = true
+    ActiveSlider = nil
+    table.clear(OrbitNodes)
+    table.clear(StarNodes)
+    table.clear(HeaderKetupatNodes)
+    table.clear(PageKetupatNodes)
+end)
+
+showNotice("FOUR WORLDS UI ONLINE", Theme.Accent)
+print("[BAXTARA] Four Worlds UI loaded. Local interface only.")
