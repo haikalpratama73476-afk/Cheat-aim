@@ -235,12 +235,69 @@ local function ClearThemeDecor()
     if ThemeDecor then pcall(function() ThemeDecor:Destroy() end) ThemeDecor = nil end
 end
 
+local function StyleTabButtons()
+    for n, btn in pairs(TabButtons or {}) do
+        if not btn or not btn.Parent then continue end
+        local active = (n == CurrentTab)
+        if T.Name == "Lego" then
+            btn.BackgroundColor3 = active and Color3.fromRGB(255, 200, 40) or Color3.fromRGB(45, 55, 75)
+            local label = btn:FindFirstChildWhichIsA("TextLabel")
+            -- find text labels
+            for _, ch in ipairs(btn:GetChildren()) do
+                if ch:IsA("TextLabel") and ch.Name ~= "Ind" then
+                    ch.TextColor3 = active and Color3.fromRGB(30, 30, 40) or T.White
+                    ch.Font = Enum.Font.GothamBlack
+                end
+            end
+            local c = btn:FindFirstChildOfClass("UICorner")
+            if c then c.CornerRadius = UDim.new(0, 4) end
+            local ind = btn:FindFirstChild("Ind")
+            if ind then ind.BackgroundColor3 = Color3.fromRGB(0, 120, 255); ind.BackgroundTransparency = active and 0 or 1 end
+        elseif T.Name == "Galaxy" then
+            btn.BackgroundColor3 = active and Color3.fromRGB(40, 25, 70) or Color3.fromRGB(12, 8, 28)
+            for _, ch in ipairs(btn:GetChildren()) do
+                if ch:IsA("TextLabel") and ch.Text ~= "" and #ch.Text < 20 then
+                    ch.TextColor3 = active and Color3.fromRGB(220, 180, 255) or T.Muted
+                    ch.Font = Enum.Font.GothamBold
+                end
+            end
+            local c = btn:FindFirstChildOfClass("UICorner")
+            if c then c.CornerRadius = UDim.new(0, 10) end
+            local ind = btn:FindFirstChild("Ind")
+            if ind then ind.BackgroundColor3 = Color3.fromRGB(180, 120, 255); ind.BackgroundTransparency = active and 0 or 1 end
+        elseif T.Name == "Ramadhan" then
+            btn.BackgroundColor3 = active and Color3.fromRGB(30, 55, 35) or Color3.fromRGB(12, 28, 18)
+            for _, ch in ipairs(btn:GetChildren()) do
+                if ch:IsA("TextLabel") and ch.Text ~= "" and #ch.Text < 20 then
+                    ch.TextColor3 = active and Color3.fromRGB(255, 220, 140) or T.Muted
+                    ch.Font = Enum.Font.GothamBold
+                end
+            end
+            local c = btn:FindFirstChildOfClass("UICorner")
+            if c then c.CornerRadius = UDim.new(0, 12) end
+            local ind = btn:FindFirstChild("Ind")
+            if ind then ind.BackgroundColor3 = Color3.fromRGB(218, 175, 70); ind.BackgroundTransparency = active and 0 or 1 end
+        else -- Modern
+            btn.BackgroundColor3 = active and T.Element or T.Sidebar
+            for _, ch in ipairs(btn:GetChildren()) do
+                if ch:IsA("TextLabel") and ch.Text ~= "" and #ch.Text < 20 then
+                    ch.TextColor3 = active and T.White or T.Muted
+                    ch.Font = Enum.Font.GothamBold
+                end
+            end
+            local c = btn:FindFirstChildOfClass("UICorner")
+            if c then c.CornerRadius = UDim.new(0, 8) end
+            local ind = btn:FindFirstChild("Ind")
+            if ind then ind.BackgroundColor3 = T.Accent; ind.BackgroundTransparency = active and 0 or 1 end
+        end
+    end
+end
+
 local function ApplyTheme(name)
     local th = Themes[name] or Themes.Modern
     T = th
     B.Settings.UI.Theme = name
 
-    -- core shells
     local Main = B.Main
     local Header = B.Header
     local Sidebar = B.Sidebar
@@ -254,10 +311,13 @@ local function ApplyTheme(name)
     if MainBorder then
         MainBorder.Color = th.Border
         MainBorder.Thickness = th.StrokeThick
+        MainBorder.Transparency = (name == "Lego") and 0.1 or 0.3
     end
     if OpenBtn then
         OpenBtn.BackgroundColor3 = th.Accent
-        OpenBtn.TextColor3 = th.Background
+        OpenBtn.TextColor3 = (name == "Lego" or name == "Ramadhan") and Color3.fromRGB(30, 25, 15) or th.Background
+        local oc = OpenBtn:FindFirstChildOfClass("UICorner")
+        if oc then oc.CornerRadius = UDim.new(0, name == "Lego" and 6 or 23) end
     end
 
     for _, obj in ipairs({Main, Header, Sidebar}) do
@@ -267,156 +327,238 @@ local function ApplyTheme(name)
         end
     end
 
+    -- Header logo box
+    if Header then
+        for _, ch in ipairs(Header:GetChildren()) do
+            if ch:IsA("Frame") and ch.Size.X.Offset == 34 then
+                ch.BackgroundColor3 = th.Accent
+                local c = ch:FindFirstChildOfClass("UICorner")
+                if c then c.CornerRadius = UDim.new(0, name == "Lego" and 4 or 10) end
+            end
+            if ch:IsA("TextLabel") then
+                if ch.Text:find("BAXTARA") then
+                    ch.TextColor3 = th.White
+                    ch.Font = name == "Lego" and Enum.Font.GothamBlack or Enum.Font.GothamBold
+                elseif ch.Text:find("CYBER") or ch.Text:find("PREMIUM") then
+                    ch.TextColor3 = th.Muted
+                    if name == "Ramadhan" then ch.Text = "RAMADHAN PREMIUM v5.5"
+                    elseif name == "Galaxy" then ch.Text = "GALAXY PREMIUM v5.5"
+                    elseif name == "Lego" then ch.Text = "BRICK BUILDER v5.5"
+                    else ch.Text = "CYBER PREMIUM v5.5" end
+                end
+            end
+        end
+    end
+
+    StyleTabButtons()
     ClearThemeDecor()
     ThemeDecor = Instance.new("Folder")
     ThemeDecor.Name = "ThemeDecor"
     ThemeDecor.Parent = Main
 
     if name == "Galaxy" then
-        -- soft nebula gradient bar under header
+        -- nebula top bar
         local neb = Instance.new("Frame")
-        neb.Size = UDim2.new(1, 0, 0, 3)
-        neb.Position = UDim2.fromOffset(0, 52)
+        neb.Name = "Nebula"
+        neb.Size = UDim2.new(1, 0, 0, 4)
+        neb.Position = UDim2.fromOffset(0, 51)
         neb.BorderSizePixel = 0
-        neb.BackgroundColor3 = th.Accent
-        neb.ZIndex = 15
+        neb.BackgroundColor3 = Color3.fromRGB(160, 100, 255)
+        neb.ZIndex = 20
         neb.Parent = ThemeDecor
         local g = Instance.new("UIGradient")
         g.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 40, 160)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(180, 120, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 160, 255)),
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 20, 120)),
+            ColorSequenceKeypoint.new(0.35, Color3.fromRGB(180, 100, 255)),
+            ColorSequenceKeypoint.new(0.65, Color3.fromRGB(80, 160, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 40, 180)),
         })
         g.Parent = neb
-        -- floating star dots
-        for i = 1, 12 do
+        task.spawn(function()
+            while neb.Parent do
+                for i = 0, 1, 0.02 do
+                    if not neb.Parent then break end
+                    g.Offset = Vector2.new(i, 0)
+                    task.wait(0.03)
+                end
+            end
+        end)
+        -- stars
+        for i = 1, 18 do
             local s = Instance.new("Frame")
-            s.Size = UDim2.fromOffset(2, 2)
-            s.Position = UDim2.new(math.random(), 0, math.random(), 0)
-            s.BackgroundColor3 = Color3.fromRGB(220, 210, 255)
-            s.BackgroundTransparency = 0.3
+            s.Size = UDim2.fromOffset(math.random(2, 3), math.random(2, 3))
+            s.Position = UDim2.new(math.random() * 0.95, 4, 0.12 + math.random() * 0.8, 0)
+            s.BackgroundColor3 = Color3.fromRGB(230, 220, 255)
+            s.BackgroundTransparency = 0.2
             s.BorderSizePixel = 0
-            s.ZIndex = 15
+            s.ZIndex = 19
             s.Parent = ThemeDecor
             Instance.new("UICorner", s).CornerRadius = UDim.new(1, 0)
             task.spawn(function()
                 while s.Parent do
-                    TweenService:Create(s, TweenInfo.new(1.5 + math.random(), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
-                        BackgroundTransparency = 0.8
-                    }):Play()
-                    task.wait(2)
+                    local tw = TweenService:Create(s, TweenInfo.new(0.8 + math.random(), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {BackgroundTransparency = 0.85})
+                    tw:Play(); tw.Completed:Wait()
+                    local tw2 = TweenService:Create(s, TweenInfo.new(0.8 + math.random(), Enum.EasingStyle.Sine), {BackgroundTransparency = 0.15})
+                    tw2:Play(); tw2.Completed:Wait()
                 end
             end)
         end
-        -- elegant side accent line
-        local line = Instance.new("Frame")
-        line.Size = UDim2.new(0, 2, 1, -60)
-        line.Position = UDim2.fromOffset(128, 58)
-        line.BackgroundColor3 = th.Accent
-        line.BackgroundTransparency = 0.5
-        line.BorderSizePixel = 0
-        line.ZIndex = 15
-        line.Parent = ThemeDecor
+        -- vertical glow line
+        local vl = Instance.new("Frame")
+        vl.Size = UDim2.new(0, 2, 1, -70)
+        vl.Position = UDim2.fromOffset(132, 58)
+        vl.BackgroundColor3 = Color3.fromRGB(160, 100, 255)
+        vl.BackgroundTransparency = 0.45
+        vl.BorderSizePixel = 0
+        vl.ZIndex = 19
+        vl.Parent = ThemeDecor
 
     elseif name == "Lego" then
-        -- stud row under header (Lego bumps)
+        -- stud bar
         local studBar = Instance.new("Frame")
-        studBar.Size = UDim2.new(1, -20, 0, 14)
-        studBar.Position = UDim2.fromOffset(10, 54)
-        studBar.BackgroundColor3 = Color3.fromRGB(255, 200, 40)
+        studBar.Size = UDim2.new(1, -16, 0, 16)
+        studBar.Position = UDim2.fromOffset(8, 52)
+        studBar.BackgroundColor3 = Color3.fromRGB(255, 205, 40)
         studBar.BorderSizePixel = 0
-        studBar.ZIndex = 15
+        studBar.ZIndex = 20
         studBar.Parent = ThemeDecor
         Instance.new("UICorner", studBar).CornerRadius = UDim.new(0, 2)
-        local list = Instance.new("UIListLayout")
-        list.FillDirection = Enum.FillDirection.Horizontal
-        list.Padding = UDim.new(0, 6)
-        list.Parent = studBar
-        for i = 1, 14 do
+        for i = 1, 16 do
             local stud = Instance.new("Frame")
-            stud.Size = UDim2.fromOffset(10, 10)
-            stud.BackgroundColor3 = Color3.fromRGB(255, 220, 80)
+            stud.Size = UDim2.fromOffset(11, 11)
+            stud.Position = UDim2.fromOffset(6 + (i - 1) * 16, 2)
+            stud.BackgroundColor3 = Color3.fromRGB(255, 225, 90)
             stud.BorderSizePixel = 0
-            stud.LayoutOrder = i
+            stud.ZIndex = 21
             stud.Parent = studBar
             Instance.new("UICorner", stud).CornerRadius = UDim.new(1, 0)
+            local stroke = Instance.new("UIStroke")
+            stroke.Color = Color3.fromRGB(200, 150, 20)
+            stroke.Thickness = 1
+            stroke.Parent = stud
         end
-        -- thick colored sidebar stripe
+        -- brick side stripe
         local stripe = Instance.new("Frame")
-        stripe.Size = UDim2.new(0, 6, 1, -70)
-        stripe.Position = UDim2.fromOffset(0, 60)
-        stripe.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+        stripe.Size = UDim2.new(0, 8, 1, -75)
+        stripe.Position = UDim2.fromOffset(0, 70)
+        stripe.BackgroundColor3 = Color3.fromRGB(0, 130, 255)
         stripe.BorderSizePixel = 0
-        stripe.ZIndex = 15
+        stripe.ZIndex = 19
         stripe.Parent = ThemeDecor
+        local red = Instance.new("Frame")
+        red.Size = UDim2.new(0, 8, 0, 40)
+        red.Position = UDim2.fromOffset(0, 70)
+        red.BackgroundColor3 = Color3.fromRGB(220, 50, 40)
+        red.BorderSizePixel = 0
+        red.ZIndex = 20
+        red.Parent = ThemeDecor
+        local grn = Instance.new("Frame")
+        grn.Size = UDim2.new(0, 8, 0, 40)
+        grn.Position = UDim2.fromOffset(0, 120)
+        grn.BackgroundColor3 = Color3.fromRGB(40, 180, 70)
+        grn.BorderSizePixel = 0
+        grn.ZIndex = 20
+        grn.Parent = ThemeDecor
 
     elseif name == "Ramadhan" then
-        -- gold top line
         local gold = Instance.new("Frame")
-        gold.Size = UDim2.new(1, 0, 0, 3)
-        gold.Position = UDim2.fromOffset(0, 52)
-        gold.BackgroundColor3 = th.Accent
+        gold.Size = UDim2.new(1, 0, 0, 4)
+        gold.Position = UDim2.fromOffset(0, 51)
+        gold.BackgroundColor3 = Color3.fromRGB(218, 175, 70)
         gold.BorderSizePixel = 0
-        gold.ZIndex = 15
+        gold.ZIndex = 20
         gold.Parent = ThemeDecor
         local gg = Instance.new("UIGradient")
         gg.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 100, 60)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(218, 175, 70)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 100, 60)),
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 80, 40)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(230, 190, 80)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 80, 40)),
         })
         gg.Parent = gold
-        -- crescent + ketupat labels (text decor)
-        local decor = Instance.new("TextLabel")
-        decor.Size = UDim2.new(1, -20, 0, 18)
-        decor.Position = UDim2.fromOffset(10, Main.AbsoluteSize.Y > 0 and 0 or 0)
-        decor.Position = UDim2.new(0, 140, 1, -22)
-        decor.BackgroundTransparency = 1
-        decor.Text = "✦  Ramadhan Mubarak  ✦  Ketupat · Kurma · Berkah"
-        decor.TextColor3 = th.Accent
-        decor.Font = Enum.Font.Gotham
-        decor.TextSize = 10
-        decor.ZIndex = 16
-        decor.Parent = ThemeDecor
-        -- soft lantern dots
-        for i = 1, 5 do
+        -- lanterns
+        for i = 1, 7 do
             local lan = Instance.new("Frame")
-            lan.Size = UDim2.fromOffset(6, 8)
-            lan.Position = UDim2.new(0.15 + i * 0.12, 0, 0, 56)
+            lan.Size = UDim2.fromOffset(8, 12)
+            lan.Position = UDim2.new(0.12 + (i - 1) * 0.11, 0, 0, 56)
             lan.BackgroundColor3 = Color3.fromRGB(255, 200, 80)
-            lan.BackgroundTransparency = 0.2
             lan.BorderSizePixel = 0
-            lan.ZIndex = 15
+            lan.ZIndex = 20
             lan.Parent = ThemeDecor
             Instance.new("UICorner", lan).CornerRadius = UDim.new(0, 3)
+            local glow = Instance.new("UIStroke")
+            glow.Color = Color3.fromRGB(255, 230, 120)
+            glow.Thickness = 1.5
+            glow.Transparency = 0.4
+            glow.Parent = lan
+            task.spawn(function()
+                while lan.Parent do
+                    TweenService:Create(glow, TweenInfo.new(1.1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.75}):Play()
+                    task.wait(1.2)
+                end
+            end)
         end
+        local foot = Instance.new("TextLabel")
+        foot.Size = UDim2.new(1, -20, 0, 16)
+        foot.Position = UDim2.new(0, 10, 1, -20)
+        foot.BackgroundTransparency = 1
+        foot.Text = "☪  Ramadhan Mubarak  ·  Ketupat · Kurma · Berkah  ☪"
+        foot.TextColor3 = Color3.fromRGB(218, 175, 70)
+        foot.Font = Enum.Font.Gotham
+        foot.TextSize = 10
+        foot.ZIndex = 20
+        foot.Parent = ThemeDecor
+        -- crescent mark on sidebar
+        local cres = Instance.new("TextLabel")
+        cres.Size = UDim2.fromOffset(28, 28)
+        cres.Position = UDim2.fromOffset(48, 8)
+        cres.BackgroundTransparency = 1
+        cres.Text = "☪"
+        cres.TextColor3 = Color3.fromRGB(218, 175, 70)
+        cres.TextSize = 20
+        cres.Font = Enum.Font.GothamBold
+        cres.ZIndex = 21
+        cres.Parent = ThemeDecor
 
     else -- Modern
         local bar = Instance.new("Frame")
-        bar.Size = UDim2.new(1, 0, 0, 2)
-        bar.Position = UDim2.fromOffset(0, 52)
+        bar.Size = UDim2.new(1, 0, 0, 3)
+        bar.Position = UDim2.fromOffset(0, 51)
         bar.BackgroundColor3 = th.Accent
         bar.BorderSizePixel = 0
-        bar.ZIndex = 15
+        bar.ZIndex = 20
         bar.Parent = ThemeDecor
         local mg = Instance.new("UIGradient")
         mg.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, th.Accent),
-            ColorSequenceKeypoint.new(1, th.Accent2),
+            ColorSequenceKeypoint.new(0.5, th.Accent2),
+            ColorSequenceKeypoint.new(1, th.Accent),
         })
         mg.Parent = bar
-        -- pulse accent
         task.spawn(function()
             while bar.Parent do
-                TweenService:Create(bar, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
-                    BackgroundTransparency = 0.4
-                }):Play()
-                task.wait(1.3)
+                for i = -1, 1, 0.04 do
+                    if not bar.Parent then break end
+                    mg.Offset = Vector2.new(i, 0)
+                    task.wait(0.02)
+                end
             end
         end)
+        local edge = Instance.new("Frame")
+        edge.Size = UDim2.new(0, 2, 1, -70)
+        edge.Position = UDim2.fromOffset(132, 58)
+        edge.BackgroundColor3 = th.Accent
+        edge.BackgroundTransparency = 0.55
+        edge.BorderSizePixel = 0
+        edge.ZIndex = 19
+        edge.Parent = ThemeDecor
     end
 
-    Notify("THEME", name .. " applied")
+    -- rebuild current page so cards/toggles use new T
+    if CurrentTab and CurrentTab ~= "" and PageBuilders[CurrentTab] then
+        pcall(PageBuilders[CurrentTab])
+    end
+    StyleTabButtons()
+    Notify("THEME", name .. " — layout & style applied")
 end
 
 
@@ -556,8 +698,12 @@ end
 
 local function Card(title, sub, height)
     local c = New("Frame", {Size=UDim2.new(1,-4,0,height), BackgroundColor3=T.Card, BorderSizePixel=0, ZIndex=12}, Content)
-    Round(c, 12); Stroke(c, T.Element, 0.3)
-    New("TextLabel", {Position=UDim2.fromOffset(12,8), Size=UDim2.new(1,-20,0,16), BackgroundTransparency=1, Text=title, TextColor3=T.White, Font=Enum.Font.GothamBold, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, c)
+    local corner = (T.Corner or 12) - 2
+    if T.Name == "Lego" then corner = 4 end
+    Round(c, corner)
+    local st = Stroke(c, T.Border or T.Accent, T.Name == "Lego" and 0.15 or 0.35)
+    if st then st.Thickness = T.Name == "Lego" and 2 or 1 end
+    New("TextLabel", {Position=UDim2.fromOffset(12,8), Size=UDim2.new(1,-20,0,16), BackgroundTransparency=1, Text=title, TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, c)
     if sub then
         New("TextLabel", {Position=UDim2.fromOffset(12,24), Size=UDim2.new(1,-20,0,12), BackgroundTransparency=1, Text=sub, TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=13}, c)
     end
@@ -566,20 +712,36 @@ end
 
 local function Toggle(card, y, title, sub, default, cb)
     local row = New("Frame", {Position=UDim2.fromOffset(10,y), Size=UDim2.new(1,-20,0,36), BackgroundTransparency=1, ZIndex=13}, card)
-    New("TextLabel", {Size=UDim2.new(1,-50,0,14), BackgroundTransparency=1, Text=title, TextColor3=T.White, Font=Enum.Font.GothamMedium, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
+    New("TextLabel", {Size=UDim2.new(1,-54,0,14), BackgroundTransparency=1, Text=title, TextColor3=T.White, Font=Enum.Font.GothamMedium, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
     if sub then
-        New("TextLabel", {Position=UDim2.fromOffset(0,15), Size=UDim2.new(1,-50,0,12), BackgroundTransparency=1, Text=sub, TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=8, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
+        New("TextLabel", {Position=UDim2.fromOffset(0,15), Size=UDim2.new(1,-54,0,12), BackgroundTransparency=1, Text=sub, TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=8, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
     end
-    local sw = New("Frame", {AnchorPoint=Vector2.new(1,0.5), Position=UDim2.new(1,0,0.5,0), Size=UDim2.fromOffset(40,20), BackgroundColor3=default and T.Accent or T.Off, ZIndex=14}, row)
-    Round(sw, 20)
-    local dot = New("Frame", {Position=default and UDim2.new(1,-18,0.5,-7) or UDim2.new(0,2,0.5,-7), Size=UDim2.fromOffset(14,14), BackgroundColor3=T.White, ZIndex=15}, sw)
-    Round(dot, 20)
+    local isLego = (T.Name == "Lego")
+    local swW, swH = isLego and 40 or 40, isLego and 22 or 20
+    local sw = New("Frame", {AnchorPoint=Vector2.new(1,0.5), Position=UDim2.new(1,0,0.5,0), Size=UDim2.fromOffset(swW, swH), BackgroundColor3=default and T.Accent or T.Off, ZIndex=14}, row)
+    Round(sw, isLego and 4 or 20)
+    if isLego then
+        local s = Instance.new("UIStroke")
+        s.Color = default and Color3.fromRGB(200, 150, 20) or Color3.fromRGB(80, 90, 110)
+        s.Thickness = 1.5
+        s.Parent = sw
+    end
+    local dotSize = isLego and 14 or 14
+    local dot = New("Frame", {Position=default and UDim2.new(1,-(dotSize+2),0.5,-dotSize/2) or UDim2.new(0,2,0.5,-dotSize/2), Size=UDim2.fromOffset(dotSize,dotSize), BackgroundColor3=T.White, ZIndex=15}, sw)
+    Round(dot, isLego and 3 or 20)
     local state = default
     local btn = New("TextButton", {Size=UDim2.fromScale(1,1), BackgroundTransparency=1, Text="", ZIndex=16}, sw)
     btn.MouseButton1Click:Connect(function()
         state = not state
-        TweenService:Create(sw, TweenInfo.new(0.15), {BackgroundColor3=state and T.Accent or T.Off}):Play()
-        TweenService:Create(dot, TweenInfo.new(0.15), {Position=state and UDim2.new(1,-18,0.5,-7) or UDim2.new(0,2,0.5,-7)}):Play()
+        local onCol = T.Accent
+        local offCol = T.Off
+        TweenService:Create(sw, TweenInfo.new(0.15, Enum.EasingStyle.Quad), {BackgroundColor3=state and onCol or offCol}):Play()
+        TweenService:Create(dot, TweenInfo.new(0.15, Enum.EasingStyle.Back), {Position=state and UDim2.new(1,-(dotSize+2),0.5,-dotSize/2) or UDim2.new(0,2,0.5,-dotSize/2)}):Play()
+        -- click flash
+        local flash = New("Frame", {Size=UDim2.fromScale(1,1), BackgroundColor3=T.White, BackgroundTransparency=0.7, BorderSizePixel=0, ZIndex=17}, sw)
+        Round(flash, isLego and 4 or 20)
+        TweenService:Create(flash, TweenInfo.new(0.25), {BackgroundTransparency=1}):Play()
+        task.delay(0.3, function() if flash.Parent then flash:Destroy() end end)
         if cb then cb(state) end
     end)
 end
@@ -612,11 +774,33 @@ local function Slider(card, y, title, min, max, default, cb)
 end
 
 local function Action(card, y, title, cb)
-    local b = New("TextButton", {Position=UDim2.fromOffset(10,y), Size=UDim2.new(1,-20,0,30), BackgroundColor3=T.Element, Text="", AutoButtonColor=false, ZIndex=13}, card)
-    Round(b, 8)
-    New("TextLabel", {Position=UDim2.fromOffset(10,0), Size=UDim2.new(1,-30,1,0), BackgroundTransparency=1, Text=title, TextColor3=T.White, Font=Enum.Font.GothamMedium, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, b)
-    New("TextLabel", {Position=UDim2.new(1,-22,0,0), Size=UDim2.fromOffset(18,30), BackgroundTransparency=1, Text="›", TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=16, ZIndex=14}, b)
-    b.MouseButton1Click:Connect(function() if cb then cb() end end)
+    local isLego = (T.Name == "Lego")
+    local isRam = (T.Name == "Ramadhan")
+    local isGal = (T.Name == "Galaxy")
+    local b = New("TextButton", {Position=UDim2.fromOffset(10,y), Size=UDim2.new(1,-20,0,32), BackgroundColor3=T.Element, Text="", AutoButtonColor=false, ZIndex=13}, card)
+    Round(b, isLego and 4 or (isGal and 10 or 8))
+    local st = Instance.new("UIStroke")
+    st.Color = T.Border or T.Accent
+    st.Thickness = isLego and 2 or 1
+    st.Transparency = isLego and 0.2 or 0.5
+    st.Parent = b
+    New("TextLabel", {Position=UDim2.fromOffset(12,0), Size=UDim2.new(1,-36,1,0), BackgroundTransparency=1, Text=title, TextColor3=T.White, Font=isLego and Enum.Font.GothamBlack or Enum.Font.GothamMedium, TextSize=isLego and 11 or 10, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, b)
+    local arrow = New("TextLabel", {Position=UDim2.new(1,-26,0,0), Size=UDim2.fromOffset(20,32), BackgroundTransparency=1, Text=isRam and "✦" or (isLego and "▶" or "›"), TextColor3=T.Accent, Font=Enum.Font.GothamBold, TextSize=isLego and 12 or 16, ZIndex=14}, b)
+    b.MouseButton1Click:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.08), {BackgroundColor3=T.Accent}):Play()
+        task.delay(0.1, function()
+            if b.Parent then TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3=T.Element}):Play() end
+        end)
+        if cb then cb() end
+    end)
+    b.MouseEnter:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.12), {BackgroundColor3=Color3.new(
+            math.min(1, T.Element.R*1.3), math.min(1, T.Element.G*1.3), math.min(1, T.Element.B*1.3)
+        )}):Play()
+    end)
+    b.MouseLeave:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.12), {BackgroundColor3=T.Element}):Play()
+    end)
 end
 
 local function Notify(title, msg)
