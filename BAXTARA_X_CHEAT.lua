@@ -407,17 +407,18 @@ local function makeLogo(parent, themeName, position, size)
             Position = UDim2.fromScale(0.5, 0.5),
             Size = UDim2.new(1, -3, 1, -3),
             BackgroundTransparency = 1,
-            Rotation = -9,
+            Rotation = -8,
             ZIndex = baseZ,
         }, host)
         corner(ring, 13)
-        stroke(ring, Theme.Accent, 1.4, 0.18)
-        label(host, "B", 27, Theme.Text, Enum.Font.GothamBlack,
-            UDim2.fromScale(0.06, -0.03), UDim2.fromScale(0.88, 1.05), Enum.TextXAlignment.Center)
+        stroke(ring, Theme.Accent, 1.5, 0.14)
+        label(host, "BX", artSize * 0.43, Theme.Text, Enum.Font.GothamBlack,
+            UDim2.fromScale(0.02, 0.02), UDim2.fromScale(0.96, 0.94), Enum.TextXAlignment.Center)
         local slash = make("Frame", {
-            Position = UDim2.new(0.72, 0, 0.12, 0),
-            Size = UDim2.new(0, 2, 0.76, 0),
-            Rotation = 20,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.77, 0, 0.5, 0),
+            Size = UDim2.new(0, 2, 0.72, 0),
+            Rotation = 24,
             BackgroundColor3 = Theme.Accent2,
             BorderSizePixel = 0,
             ZIndex = baseZ + 2,
@@ -427,141 +428,150 @@ local function makeLogo(parent, themeName, position, size)
 end
 
 local function buildBackdrop()
-    if Stage then Stage:Destroy() end
+    -- Never paint over the Roblox viewport. Theme decoration is attached to Main.
+    if Stage then
+        Stage:Destroy()
+        Stage = nil
+    end
     OrbitNodes, StarNodes, KetupatNodes = {}, {}, {}
-    Stage = make("Frame", {
-        Name = "ThemeBackdrop",
+end
+
+local function buildPanelDecor(parent)
+    local decor = make("Frame", {
+        Name = "ThemeDecor",
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Theme.Background,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        ZIndex = 0,
-    }, ScreenGui)
-    gradient(Stage, Theme.Background, Theme.Surface, 90)
+        ClipsDescendants = true,
+        ZIndex = 20,
+    }, parent)
 
     if Theme.Style == "Galaxy" then
-        -- Deep-space nebula field and orbit paths surrounding the panel.
-        for i = 1, 3 do
+        -- Deep-space color is confined to the panel. Orbital paths sit near its edges.
+        for i = 1, 2 do
             local nebula = make("Frame", {
                 AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(i == 1 and 0.17 or (i == 2 and 0.81 or 0.51), 0,
-                    i == 1 and 0.19 or (i == 2 and 0.80 or 0.50), 0),
-                Size = UDim2.fromScale(0.46, 0.40),
-                BackgroundColor3 = i == 2 and Color3.fromRGB(26, 38, 105) or Color3.fromRGB(77, 29, 118),
-                BackgroundTransparency = 0.76,
+                Position = i == 1 and UDim2.new(0.16, 0, 0.18, 0) or UDim2.new(0.84, 0, 0.82, 0),
+                Size = UDim2.fromScale(0.40, 0.30),
+                BackgroundColor3 = i == 1 and Color3.fromRGB(77, 37, 137) or Color3.fromRGB(25, 64, 130),
+                BackgroundTransparency = 0.91,
                 BorderSizePixel = 0,
-                ZIndex = 1,
-            }, Stage)
+                ZIndex = 20,
+            }, decor)
             corner(nebula, 999)
-            gradient(nebula, Color3.fromRGB(64, 35, 127), Color3.fromRGB(11, 31, 80), 25 * i)
+            gradient(nebula, Theme.Accent, Theme.Accent2, i == 1 and 28 or 142)
         end
-        for i = 1, 52 do
+        for i = 1, 34 do
             local star = make("Frame", {
-                Position = UDim2.new(math.random(2, 98) / 100, 0, math.random(2, 98) / 100, 0),
-                Size = UDim2.fromOffset(math.random(1, 3), math.random(1, 3)),
-                BackgroundColor3 = i % 5 == 0 and Theme.Accent2 or Theme.Text,
-                BackgroundTransparency = math.random(20, 65) / 100,
+                Position = UDim2.new(math.random(4, 96) / 100, 0, math.random(5, 95) / 100, 0),
+                Size = UDim2.fromOffset(i % 7 == 0 and 3 or 2, i % 7 == 0 and 3 or 2),
+                BackgroundColor3 = i % 4 == 0 and Theme.Accent2 or Theme.Text,
+                BackgroundTransparency = math.random(45, 78) / 100,
                 BorderSizePixel = 0,
-                ZIndex = 2,
-            }, Stage)
+                ZIndex = 20,
+            }, decor)
             corner(star, 99)
             table.insert(StarNodes, { Object = star, Phase = math.random() * 6.28, Base = star.BackgroundTransparency })
         end
         for i = 1, 2 do
             local orbit = make("Frame", {
                 AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.fromScale(0.5, 0.51),
-                Size = i == 1 and UDim2.fromScale(0.97, 0.80) or UDim2.fromScale(0.90, 0.93),
-                Rotation = i == 1 and -11 or 12,
+                Position = UDim2.fromScale(0.5, 0.52),
+                Size = i == 1 and UDim2.new(1, -26, 1, -36) or UDim2.new(1, -72, 1, -82),
+                Rotation = i == 1 and -9 or 12,
                 BackgroundTransparency = 1,
-                ZIndex = 3,
-            }, Stage)
+                ZIndex = 20,
+            }, decor)
             corner(orbit, 999)
-            stroke(orbit, i == 1 and Theme.Accent2 or Theme.Accent, 1.4, 0.48)
+            stroke(orbit, i == 1 and Theme.Accent2 or Theme.Accent, 1.35, 0.48)
         end
         for i = 1, 3 do
-            local planetHost, ring, sphere = addPlanet(Stage, i == 1 and 28 or 18,
+            local host, ring = addPlanet(decor, i == 1 and 20 or 15,
                 i == 1 and Theme.Accent or Theme.Accent2,
-                i == 1 and Theme.Accent2 or Color3.fromRGB(243, 164, 255), 4)
+                i == 1 and Theme.Accent2 or Color3.fromRGB(229, 166, 255), 20)
             table.insert(OrbitNodes, {
-                Host = planetHost,
-                Ring = ring,
-                Sphere = sphere,
+                Host = host, Ring = ring,
                 Phase = i * 2.12,
-                RX = i == 1 and 0.43 or (i == 2 and 0.48 or 0.37),
-                RY = i == 1 and 0.36 or (i == 2 and 0.30 or 0.41),
-                Speed = i == 1 and 0.16 or (i == 2 and -0.12 or 0.09),
+                RX = i == 1 and 0.39 or (i == 2 and 0.42 or 0.34),
+                RY = i == 1 and 0.34 or (i == 2 and 0.30 or 0.38),
+                Speed = i == 1 and 0.13 or (i == 2 and -0.10 or 0.08),
             })
         end
     elseif Theme.Style == "Lego" then
-        -- Repeated recessed studs make the full backdrop read as a build plate.
+        -- LEGO studs are a subtle build-plate texture behind the actual controls.
         for row = 1, 7 do
-            for col = 1, 13 do
+            for col = 1, 12 do
                 local stud = make("Frame", {
-                    Position = UDim2.new((col - 1) / 13, 12, (row - 1) / 7, 8),
-                    Size = UDim2.fromOffset(18, 12),
-                    BackgroundColor3 = Color3.fromRGB(49, 62, 84),
-                    BackgroundTransparency = 0.58,
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new((col - 0.5) / 12, 0, (row - 0.5) / 7, 0),
+                    Size = UDim2.fromOffset(15, 9),
+                    BackgroundColor3 = Color3.fromRGB(80, 98, 125),
+                    BackgroundTransparency = 0.78,
                     BorderSizePixel = 0,
-                    ZIndex = 1,
-                }, Stage)
-                corner(stud, 4)
-                stroke(stud, Color3.fromRGB(87, 103, 130), 1, 0.75)
+                    ZIndex = 20,
+                }, decor)
+                corner(stud, 3)
+                stroke(stud, Color3.fromRGB(130, 149, 178), 1, 0.86)
             end
         end
-        local colorBand = make("Frame", {
-            Position = UDim2.new(0, 0, 1, -9),
-            Size = UDim2.new(1, 0, 0, 9),
-            BackgroundColor3 = Color3.fromRGB(47, 172, 85),
+        local bottomRail = make("Frame", {
+            Position = UDim2.new(0, 12, 1, -8),
+            Size = UDim2.new(1, -24, 0, 5),
+            BackgroundColor3 = Color3.fromRGB(44, 190, 75),
             BorderSizePixel = 0,
-            ZIndex = 2,
-        }, Stage)
-        gradient(colorBand, Color3.fromRGB(46, 188, 86), Color3.fromRGB(13, 107, 56), 0)
+            ZIndex = 21,
+        }, decor)
+        corner(bottomRail, 2)
     elseif Theme.Style == "Eid" then
-        local crescent = label(Stage, "☾", 150, Color3.fromRGB(210, 169, 83), Enum.Font.GothamBold,
-            UDim2.new(0.72, 0, 0.05, 0), UDim2.fromOffset(170, 170), Enum.TextXAlignment.Center)
-        crescent.TextTransparency = 0.78
-        for i = 1, 7 do
+        -- Hanging ornaments and the crescent remain inside the panel clipping boundary.
+        local crescent = label(decor, "☾", 100, Color3.fromRGB(198, 157, 78), Enum.Font.GothamBold,
+            UDim2.new(1, -132, 0, 45), UDim2.fromOffset(108, 112), Enum.TextXAlignment.Center)
+        crescent.TextTransparency = 0.84
+        for i = 1, 3 do
+            local x = ({ 0.16, 0.82, 0.91 })[i]
+            local cord = make("Frame", {
+                Position = UDim2.new(x, 0, 0, 0),
+                Size = UDim2.fromOffset(1, 42 + i * 10),
+                BackgroundColor3 = Theme.Accent,
+                BackgroundTransparency = 0.48,
+                BorderSizePixel = 0,
+                ZIndex = 20,
+            }, decor)
             local lantern = make("Frame", {
-                Position = UDim2.new(i / 8, 0, 0, 0),
-                Size = UDim2.fromOffset(1, 74 + (i % 3) * 16),
+                AnchorPoint = Vector2.new(0.5, 0),
+                Position = UDim2.new(0.5, 0, 1, 0),
+                Size = UDim2.fromOffset(12, 16),
                 BackgroundColor3 = Theme.Accent,
-                BackgroundTransparency = 0.68,
+                BackgroundTransparency = 0.38,
                 BorderSizePixel = 0,
-                ZIndex = 1,
-            }, Stage)
-            local glow = make("Frame", {
-                Position = UDim2.new(0.5, -7, 1, 0),
-                Size = UDim2.fromOffset(15, 20),
-                BackgroundColor3 = Theme.Accent,
-                BackgroundTransparency = 0.72,
-                BorderSizePixel = 0,
-                ZIndex = 2,
-            }, lantern)
-            corner(glow, 5)
+                ZIndex = 21,
+            }, cord)
+            corner(lantern, 4)
         end
-        addKetupat(Stage, UDim2.new(0.06, 0, 0.16, 0), 46, KetupatNodes, 3)
-        addKetupat(Stage, UDim2.new(0.86, 0, 0.68, 0), 55, KetupatNodes, 3)
-        addKetupat(Stage, UDim2.new(0.18, 0, 0.78, 0), 32, KetupatNodes, 3)
+        addKetupat(decor, UDim2.new(0, 18, 0, 112), 29, KetupatNodes, 21)
+        addKetupat(decor, UDim2.new(1, -49, 1, -78), 32, KetupatNodes, 21)
     else
-        -- Modern remains restrained: large soft color fields, no decorative clutter.
-        local glowA = make("Frame", {
-            Position = UDim2.new(0.69, 0, -0.16, 0),
-            Size = UDim2.fromScale(0.42, 0.58),
+        -- Modern uses a restrained edge glow and precise divider, not a full-screen wash.
+        local glow = make("Frame", {
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -18, 0, 82),
+            Size = UDim2.fromOffset(180, 180),
             BackgroundColor3 = Theme.Accent,
-            BackgroundTransparency = 0.92,
+            BackgroundTransparency = 0.95,
             BorderSizePixel = 0,
-            ZIndex = 1,
-        }, Stage)
-        corner(glowA, 999)
-        local line = make("Frame", {
-            Position = UDim2.new(0, 0, 1, -2),
-            Size = UDim2.new(1, 0, 0, 2),
-            BackgroundColor3 = Theme.Accent,
-            BackgroundTransparency = 0.22,
+            ZIndex = 20,
+        }, decor)
+        corner(glow, 999)
+        local rail = make("Frame", {
+            Position = UDim2.new(0, 0, 0, 61),
+            Size = UDim2.new(1, 0, 0, 1),
+            BackgroundColor3 = Theme.Border,
+            BackgroundTransparency = 0.78,
             BorderSizePixel = 0,
-            ZIndex = 1,
-        }, Stage)
+            ZIndex = 21,
+        }, decor)
     end
+    return decor
 end
 
 local PageNames = {
@@ -1183,7 +1193,7 @@ end
 local function pageAbout()
     clearContent(); setupContentList()
     addSectionHeading(Content, "ABOUT BAXTARA", "A UI project focused on distinct visual identity.")
-    local card = makeCard(Content, "BAXTARA X / UI EDITION 7.0", "Four themes • Responsive layout • Local controls", 145, 2)
+    local card = makeCard(Content, "BAXTARA X / UI EDITION 7.1", "Four themes • Responsive layout • Local controls", 145, 2)
     label(card, "Galaxy, LEGO, Modern and Idul Fitri each have their own panel composition, logo treatment, navigation geometry and opening animation.",
         9, Theme.Text, Enum.Font.Gotham, UDim2.fromOffset(15, 59), UDim2.new(1, -30, 0, 54))
     local scope = makeCard(Content, "EXECUTION SCOPE", "Local interface only.", 126, 3)
@@ -1405,6 +1415,7 @@ local function makePanel()
     else
         corner(Main, 14); stroke(Main, Theme.Border, 1, 0.6); gradient(Main, Theme.Background, Theme.Surface, 90)
     end
+    buildPanelDecor(Main)
 
     local headerHeight = Theme.Style == "Lego" and 66 or 62
     local header = make("Frame", {
@@ -1581,11 +1592,18 @@ end
 local function revealPanel()
     if State.Destroyed or not Main or not Main.Parent then return end
     Main.Visible = true
-    local scale = Main:FindFirstChildOfClass("UIScale") or make("UIScale", { Scale = 0.76 }, Main)
-    scale.Scale = State.ReduceMotion and 1 or 0.76
-    Main.BackgroundTransparency = State.ReduceMotion and 0 or 0.20
-    playTween(scale, 0.34, { Scale = 1 }, Enum.EasingStyle.Back)
-    playTween(Main, 0.26, { BackgroundTransparency = 0 }, Enum.EasingStyle.Quart)
+    local initialScale = 0.84
+    if Theme.Style == "Modern" then initialScale = 0.055
+    elseif Theme.Style == "Galaxy" then initialScale = 0.78
+    elseif Theme.Style == "Lego" then initialScale = 0.82
+    elseif Theme.Style == "Eid" then initialScale = 0.90 end
+    local scale = Main:FindFirstChildOfClass("UIScale") or make("UIScale", { Scale = initialScale }, Main)
+    scale.Scale = State.ReduceMotion and 1 or initialScale
+    Main.Rotation = 0
+    Main.BackgroundTransparency = State.ReduceMotion and 0 or 0.08
+    local duration = Theme.Style == "Modern" and 0.56 or 0.34
+    playTween(scale, duration, { Scale = 1 }, Enum.EasingStyle.Back)
+    playTween(Main, 0.24, { BackgroundTransparency = 0 }, Enum.EasingStyle.Quart)
     if Launcher then Launcher.Visible = false end
 end
 
@@ -1593,12 +1611,11 @@ local function makeOpeningLayer()
     local layer = make("Frame", {
         Name = "OpeningSequence",
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Theme.Background,
-        BackgroundTransparency = 0.18,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
+        Active = false,
         ZIndex = 120,
     }, ScreenGui)
-    gradient(layer, Theme.Background, Theme.Surface, 90)
     return layer
 end
 
@@ -1684,20 +1701,32 @@ local function runModernOpen(layer)
     local frame = make("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.new(0.72, 0, 0.62, 0),
+        Size = UDim2.fromOffset(300, 154),
         BackgroundColor3 = Theme.Surface,
-        BackgroundTransparency = 0.12,
+        BackgroundTransparency = 0.08,
         BorderSizePixel = 0,
         ZIndex = 124,
     }, layer)
-    corner(frame, 14); stroke(frame, Theme.Border, 1, 0.3)
-    label(frame, "BAXTARA / SYSTEM CHECK", 10, Theme.Text, Enum.Font.GothamBold,
-        UDim2.fromOffset(22, 22), UDim2.new(1, -44, 0, 21))
-    label(frame, "Scanning interface layers", 9, Theme.Muted, Enum.Font.Gotham,
-        UDim2.fromOffset(22, 47), UDim2.new(1, -44, 0, 18))
+    corner(frame, 18)
+    stroke(frame, Theme.Border, 1.2, 0.24)
+    gradient(frame, Theme.Surface, Theme.Background, 0)
+
+    local scale = make("UIScale", { Scale = 0.06 }, frame)
+    local logoHost = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(20, 26),
+        Size = UDim2.fromOffset(72, 72),
+        ZIndex = 126,
+    }, frame)
+    makeLogo(logoHost, "Modern", UDim2.fromOffset(2, 2), 68)
+
+    label(frame, "BAXTARA X", 17, Theme.Text, Enum.Font.GothamBlack,
+        UDim2.fromOffset(108, 35), UDim2.new(1, -126, 0, 26))
+    label(frame, "MODERN WORKSPACE", 8, Theme.Muted, Enum.Font.Code,
+        UDim2.fromOffset(110, 64), UDim2.new(1, -128, 0, 18))
     local rail = make("Frame", {
-        Position = UDim2.new(0, 22, 0, 82),
-        Size = UDim2.new(1, -44, 0, 3),
+        Position = UDim2.new(0, 20, 1, -28),
+        Size = UDim2.new(1, -40, 0, 3),
         BackgroundColor3 = Theme.Off,
         BorderSizePixel = 0,
         ZIndex = 126,
@@ -1710,22 +1739,17 @@ local function runModernOpen(layer)
         ZIndex = 127,
     }, rail)
     corner(fill, 99)
-    local scan = make("Frame", {
-        Position = UDim2.new(0, 0, 0, 0),
-        Size = UDim2.new(0, 3, 1, 0),
-        BackgroundColor3 = Theme.Accent2,
-        BackgroundTransparency = 0.08,
-        BorderSizePixel = 0,
-        ZIndex = 128,
-    }, frame)
-    local msg = label(frame, "VERIFYING • LAYOUT • INPUTS", 8, Theme.Accent2, Enum.Font.Code,
-        UDim2.fromOffset(22, 100), UDim2.new(1, -44, 0, 16))
-    local sweep = playTween(scan, 0.73, { Position = UDim2.new(1, -3, 0, 0) }, Enum.EasingStyle.Linear)
-    playTween(fill, 0.73, { Size = UDim2.new(1, 0, 1, 0) }, Enum.EasingStyle.Linear)
-    task.wait(0.76)
-    msg.Text = "CHECK COMPLETE  /  OPENING WORKSPACE"
-    playTween(frame, 0.18, { BackgroundTransparency = 1 })
-    task.wait(0.20)
+    local status = label(frame, "INITIALIZING INTERFACE", 7, Theme.Accent2, Enum.Font.Code,
+        UDim2.fromOffset(110, 85), UDim2.new(1, -128, 0, 16))
+
+    playTween(scale, 0.58, { Scale = 1.04 }, Enum.EasingStyle.Back)
+    playTween(fill, 0.72, { Size = UDim2.new(1, 0, 1, 0) }, Enum.EasingStyle.Quart)
+    task.wait(0.62)
+    playTween(scale, 0.13, { Scale = 1 }, Enum.EasingStyle.Quad)
+    status.Text = "SCAN COMPLETE  /  OPENING"
+    task.wait(0.18)
+    playTween(frame, 0.16, { BackgroundTransparency = 1 })
+    task.wait(0.18)
 end
 
 local function runEidOpen(layer)
@@ -1782,12 +1806,47 @@ end
 closePanel = function()
     if State.Destroyed or not State.PanelVisible or State.Opening then return end
     State.Opening = true
+    local closingScan = nil
     if Main and Main.Parent and not State.ReduceMotion then
         local scale = Main:FindFirstChildOfClass("UIScale") or make("UIScale", { Scale = 1 }, Main)
-        local tw = playTween(scale, 0.18, { Scale = 0.92 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-        if tw then tw.Completed:Wait() end
+        local duration = 0.28
+        local targetScale = 0.10
+        local targetRotation = 0
+
+        if Theme.Style == "Galaxy" then
+            duration, targetScale, targetRotation = 0.34, 0.06, 16
+        elseif Theme.Style == "Lego" then
+            duration, targetScale, targetRotation = 0.30, 0.12, 3
+        elseif Theme.Style == "Modern" then
+            duration, targetScale, targetRotation = 0.30, 0.055, 0
+            closingScan = make("Frame", {
+                Position = UDim2.new(0, 0, 1, -3),
+                Size = UDim2.new(0, 0, 0, 2),
+                BackgroundColor3 = Theme.Accent2,
+                BorderSizePixel = 0,
+                ZIndex = 60,
+            }, Main)
+            playTween(closingScan, 0.13, { Size = UDim2.new(1, 0, 0, 2) }, Enum.EasingStyle.Linear)
+            task.wait(0.14)
+        elseif Theme.Style == "Eid" then
+            duration, targetScale, targetRotation = 0.38, 0.08, -3
+        end
+
+        local scaleTween = playTween(scale, duration, { Scale = targetScale }, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        playTween(Main, duration * 0.82, { BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        if targetRotation ~= 0 then
+            playTween(Main, duration, { Rotation = targetRotation }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        end
+        if scaleTween then scaleTween.Completed:Wait() end
     end
-    if Main and Main.Parent then Main.Visible = false end
+    if closingScan and closingScan.Parent then closingScan:Destroy() end
+    if Main and Main.Parent then
+        Main.Visible = false
+        Main.Rotation = 0
+        Main.BackgroundTransparency = 0
+        local scale = Main:FindFirstChildOfClass("UIScale")
+        if scale then scale.Scale = 1 end
+    end
     State.PanelVisible = false
     if Launcher then Launcher.Visible = true end
     State.Opening = false
@@ -1797,7 +1856,7 @@ local function togglePanel()
     if State.PanelVisible then closePanel() else openPanel() end
 end
 
--- Build initial state: launcher is visible; panel opens only after user action.
+-- Build initial state: only the floating launcher is visible; no theme art covers the viewport.
 renderUI = function()
     if State.Destroyed then return end
     Theme = Themes[State.Theme] or Themes.Galaxy
@@ -1880,7 +1939,7 @@ connect(RunService.RenderStepped, function()
                     item.Host.AnchorPoint = Vector2.new(0.5, 0.5)
                     item.Host.Position = UDim2.new(0.5 + math.cos(angle) * item.RX, 0,
                         0.5 + math.sin(angle) * item.RY, 0)
-                    item.Host.ZIndex = math.sin(angle) > 0 and 5 or 3
+                    item.Host.ZIndex = math.sin(angle) > 0 and 21 or 20
                 end
             end
         end
@@ -1900,4 +1959,4 @@ ScreenGui.Destroying:Connect(function()
     table.clear(KetupatNodes)
 end)
 
-print("[BAXTARA] Four Worlds UI v7.0 loaded. Local interface only. Use BX launcher or RightControl.")
+print("[BAXTARA] Four Worlds UI v7.1 loaded. Local interface only. Use BX launcher or RightControl.")
