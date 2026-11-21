@@ -608,31 +608,62 @@ PageBuilders.LocalCfg = function()
             -- soft logos high in sky (not blocking view)
             local root = GetRoot(LocalPlayer.Character)
             local base = root and root.Position or Vector3.new(0, 0, 0)
-            for i = 1, 6 do
-                local ang = (i/6) * math.pi * 2
+            -- cover sky with grid of logos + color atmosphere
+            local positions = {}
+            for ring = 1, 3 do
+                local n = 6 + ring * 2
+                local rad = 80 + ring * 70
+                local h = 60 + ring * 40
+                for i = 1, n do
+                    local ang = (i/n) * math.pi * 2
+                    table.insert(positions, Vector3.new(base.X + math.cos(ang)*rad, h, base.Z + math.sin(ang)*rad))
+                end
+            end
+            -- top center
+            table.insert(positions, Vector3.new(base.X, 160, base.Z))
+            for _, pos in ipairs(positions) do
                 local part = Instance.new("Part")
                 part.Anchored = true
                 part.CanCollide = false
                 part.Transparency = 1
                 part.Size = Vector3.new(1,1,1)
-                part.CFrame = CFrame.new(base.X + math.cos(ang)*180, 120, base.Z + math.sin(ang)*180)
+                part.CFrame = CFrame.new(pos)
                 part.Parent = B.SkyFolder
                 local bb = Instance.new("BillboardGui")
-                bb.Size = UDim2.fromOffset(320, 40)
-                bb.MaxDistance = 3000
+                bb.Size = UDim2.fromOffset(280, 36)
+                bb.MaxDistance = 4000
                 bb.AlwaysOnTop = false
                 bb.Parent = part
                 local tl = Instance.new("TextLabel")
                 tl.Size = UDim2.fromScale(1,1)
                 tl.BackgroundTransparency = 1
                 tl.Text = "BAXTARA X CHEAT"
-                tl.TextColor3 = Color3.fromRGB(0, 255, 120)
-                tl.TextTransparency = 0.35
-                tl.TextStrokeTransparency = 0.6
+                tl.TextColor3 = Color3.fromRGB(0, 255, 130)
+                tl.TextTransparency = 0.25
+                tl.TextStrokeColor3 = Color3.fromRGB(0, 40, 20)
+                tl.TextStrokeTransparency = 0.5
                 tl.Font = Enum.Font.GothamBlack
                 tl.TextScaled = true
                 tl.Parent = bb
             end
+            -- atmosphere color (covers sky look)
+            pcall(function()
+                local sky = Lighting:FindFirstChildOfClass("Sky")
+                if not sky then
+                    sky = Instance.new("Sky")
+                    sky.Parent = Lighting
+                end
+                sky.SkyboxBk = ""
+                sky.SkyboxDn = ""
+                sky.SkyboxFt = ""
+                sky.SkyboxLf = ""
+                sky.SkyboxRt = ""
+                sky.SkyboxUp = ""
+                sky.CelestialBodiesShown = false
+            end)
+            Lighting.FogColor = Color3.fromRGB(10, 40, 25)
+            Lighting.FogStart = 0
+            Lighting.FogEnd = 800
         else
             Lighting.Brightness = 1
             Lighting.FogEnd = 100000
@@ -707,36 +738,13 @@ PageBuilders.LocalCfg = function()
         Notify("RANK", "Level/XP +50 attempt")
     end)
 
-    local tp = Card("TELEPORT", "Player or Object", 150)
-    Action(tp, 42, "Mode: Player", function() B.Settings.LocalCfg.TPTarget="Player"; Notify("TP","Player mode") end)
-    Action(tp, 74, "Mode: Object", function() B.Settings.LocalCfg.TPTarget="Object"; Notify("TP","Object mode") end)
-    Action(tp, 106, "TP to nearest target", function()
-        local my = GetRoot(LocalPlayer.Character)
-        if not my then return end
-        if B.Settings.LocalCfg.TPTarget == "Object" then
-            local best, bd = nil, 9999
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if obj:IsA("BasePart") and not obj:IsDescendantOf(LocalPlayer.Character) then
-                    local d = (my.Position - obj.Position).Magnitude
-                    if d > 5 and d < bd and d < 300 then bd=d; best=obj end
-                end
-            end
-            if best then my.CFrame = best.CFrame + Vector3.new(0, 3, 0); Notify("TP","Object") end
-        else
-            local best, bd = nil, 9999
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer then
-                    local r = GetRoot(GetChar(p))
-                    if r then
-                        local d = (my.Position - r.Position).Magnitude
-                        if d < bd then bd=d; best=r end
-                    end
-                end
-            end
-            if best then my.CFrame = best.CFrame * CFrame.new(0,0,3); Notify("TP","Player") end
-        end
-    end)
-    Action(tp, 138, "TP ALL players in front", function()
+    local plist = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then table.insert(plist, p) end
+    end
+    local tpH = 90 + math.min(#plist, 8) * 44
+    local tp = Card("TELEPORT PLAYERS", "Klik nama + avatar untuk TP", math.max(tpH, 140))
+    Action(tp, 42, "TP ALL in front", function()
         local my = GetRoot(LocalPlayer.Character)
         if not my then return end
         local front = my.CFrame * CFrame.new(0,0,-10)
@@ -749,6 +757,38 @@ PageBuilders.LocalCfg = function()
         end
         Notify("TP","All front")
     end)
+    local y = 74
+    for idx, plr in ipairs(plist) do
+        if idx > 8 then break end
+        local row = New("Frame", {Position=UDim2.fromOffset(10,y), Size=UDim2.new(1,-20,0,40), BackgroundColor3=T.Element, BorderSizePixel=0, ZIndex=13}, tp)
+        Round(row, 8)
+        local img = New("ImageLabel", {Position=UDim2.fromOffset(4,4), Size=UDim2.fromOffset(32,32), BackgroundColor3=T.Off, BorderSizePixel=0, ZIndex=14}, row)
+        Round(img, 6)
+        task.spawn(function()
+            local ok, url = pcall(function()
+                return Players:GetUserThumbnailAsync(plr.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+            end)
+            if ok and img.Parent then img.Image = url end
+        end)
+        New("TextLabel", {Position=UDim2.fromOffset(42,4), Size=UDim2.new(1,-100,0,18), BackgroundTransparency=1, Text=plr.DisplayName, TextColor3=T.White, Font=Enum.Font.GothamBold, TextSize=11, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
+        New("TextLabel", {Position=UDim2.fromOffset(42,20), Size=UDim2.new(1,-100,0,14), BackgroundTransparency=1, Text="@"..plr.Name, TextColor3=T.Muted, Font=Enum.Font.Code, TextSize=9, TextXAlignment=Enum.TextXAlignment.Left, ZIndex=14}, row)
+        local tpb = New("TextButton", {Position=UDim2.new(1,-54,0.5,-12), Size=UDim2.fromOffset(48,24), BackgroundColor3=T.Accent, Text="TP", TextColor3=T.Background, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=14, AutoButtonColor=false}, row)
+        Round(tpb, 6)
+        tpb.MouseButton1Click:Connect(function()
+            local my = GetRoot(LocalPlayer.Character)
+            local r = GetRoot(GetChar(plr))
+            if my and r then
+                my.CFrame = r.CFrame * CFrame.new(0, 0, 3)
+                Notify("TP", "→ "..plr.DisplayName)
+            else
+                Notify("TP", "Player not available")
+            end
+        end)
+        y = y + 44
+    end
+    if #plist == 0 then
+        New("TextLabel", {Position=UDim2.fromOffset(12,74), Size=UDim2.new(1,-24,0,20), BackgroundTransparency=1, Text="No other players in server", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=10, ZIndex=13}, tp)
+    end
 
     local fr = Card("FREEZE / LAG", "Others", 100)
     Toggle(fr, 42, "Freeze All Others", "Anchor HRP", S.FreezeOthers, function(v)
@@ -768,7 +808,7 @@ PageBuilders.Troll = function()
     ClearContent()
     local S = B.Settings.Troll
     local fb = Card("FAKE BAN MESSAGE", "Popup di layar kamu / local", 200)
-    New("TextLabel", {Position=UDim2.fromOffset(12,42), Size=UDim2.new(1,-24,0,36), BackgroundTransparency=1, Text="Default: Suspicious activity (Code 2A)", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, TextWrapped=true, ZIndex=13}, fb)
+    New("TextLabel", {Position=UDim2.fromOffset(12,42), Size=UDim2.new(1,-24,0,36), BackgroundTransparency=1, Text="Default: Code 2A disconnect style", TextColor3=T.Muted, Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, TextWrapped=true, ZIndex=13}, fb)
     Action(fb, 84, "Use DEFAULT ban text", function()
         B.Settings.Troll.FakeBanText = "You have been banned.\\nReason: Suspicious activity detected Or Extreme Ping (Code 2A)"
         Notify("TROLL", "Default text set")
@@ -1478,10 +1518,22 @@ end))
 
 AddConn(CoreGui.DescendantAdded:Connect(function(obj)
     if not B.Settings.Protect.AntiKick then return end
+    -- IGNORE our own panel (Troll fake ban text was triggering hop)
+    if obj:IsDescendantOf(ScreenGui) then return end
+    local p = obj.Parent
+    while p do
+        if p.Name == "BAXTARA_X_CHEAT" or p.Name == "VIPPanel" then return end
+        if p == ScreenGui then return end
+        p = p.Parent
+    end
     if obj:IsA("TextLabel") or obj:IsA("TextButton") then
         local t=(obj.Text or ""):lower()
-        if t:find("suspicious") or t:find("banned") or t:find("exploiting") or t:find("kicked") or t:find("timedout") then
-            if B.Settings.Protect.AutoHopOnFlag then pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end) end
+        if t:find("suspicious") or t:find("banned") or t:find("exploiting") or t:find("kicked") or t:find("timedout") or t:find("dikeluarkan") then
+            if B.Settings.Protect.AutoHopOnFlag then
+                task.delay(0.5, function()
+                    pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
+                end)
+            end
         end
     end
 end))
