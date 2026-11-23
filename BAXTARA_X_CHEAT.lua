@@ -1812,7 +1812,7 @@ local function makePanel()
     local camera = Workspace.CurrentCamera
     local viewport = camera and camera.ViewportSize or Vector2.new(1000, 700)
     local mobile = viewport.X < 680
-    local panelSize = mobile and UDim2.new(0.96, 0, 0.91, 0) or UDim2.new(0.86, 0, 0.84, 0)
+    local panelSize = mobile and UDim2.new(0.92, 0, 0.72, 0) or UDim2.new(0.72, 0, 0.78, 0)
     Main = make("Frame", {
         Name = "BAXTARA_MAIN_PANEL",
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1825,6 +1825,41 @@ local function makePanel()
         ZIndex = 20,
     }, ScreenGui)
     make("UISizeConstraint", { MinSize = Vector2.new(320, 390), MaxSize = Vector2.new(1100, 820) }, Main)
+    if Theme.Style == "Galaxy" then
+        for i = 1, 12 do
+            local star = make("Frame", {
+                Position = UDim2.new(math.random(), 0, math.random(), 0),
+                Size = UDim2.fromOffset(math.random(2, 3), math.random(2, 3)),
+                BackgroundColor3 = Color3.fromRGB(200, 220, 255),
+                BackgroundTransparency = 0.3 + math.random() * 0.5,
+                BorderSizePixel = 0,
+                ZIndex = 21,
+            }, Main)
+            corner(star, 99)
+        end
+    elseif Theme.Style == "Modern" then
+        -- city grid line accents inside panel
+        for i = 1, 3 do
+            local line = make("Frame", {
+                Position = UDim2.new(0, 0, 0.2 * i, 0),
+                Size = UDim2.new(1, 0, 0, 1),
+                BackgroundColor3 = Theme.Accent,
+                BackgroundTransparency = 0.88,
+                BorderSizePixel = 0,
+                ZIndex = 21,
+            }, Main)
+        end
+    elseif Theme.Style == "Eid" then
+        local moon = make("Frame", {
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -12, 0, 8),
+            Size = UDim2.fromOffset(22, 22),
+            BackgroundColor3 = Color3.fromRGB(218, 175, 70),
+            BorderSizePixel = 0,
+            ZIndex = 25,
+        }, Main)
+        corner(moon, 99)
+    end
     if Theme.Style == "Lego" then
         corner(Main, 5); stroke(Main, Color3.fromRGB(5, 9, 16), 4, 0.02)
     elseif Theme.Style == "Galaxy" then
@@ -2014,18 +2049,23 @@ local function makePanel()
         -- Compact-screen fallback: theme-specific horizontal nav without clipping.
         navHorizontal = true
         nav = make("ScrollingFrame", {
-            Position = UDim2.fromOffset(10, bodyTop),
-            Size = UDim2.new(1, -20, 0, 47),
-            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(8, bodyTop),
+            Size = UDim2.new(1, -16, 0, 56),
+            BackgroundTransparency = 0.4,
+            BackgroundColor3 = Theme.Surface,
             BorderSizePixel = 0,
-            ScrollBarThickness = 0,
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = Theme.Accent,
             ScrollingDirection = Enum.ScrollingDirection.X,
-            CanvasSize = UDim2.new(0, #PageNames * 140, 0, 0),
+            CanvasSize = UDim2.new(0, #PageNames * 100, 0, 0),
+            Active = true,
             ZIndex = 23,
         }, Main)
+        corner(nav, 10)
         make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, nav)
-        contentX, contentY = 11, bodyTop + 54
-        contentSize = UDim2.new(1, -22, 1, -(bodyTop + 64))
+        make("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingTop = UDim.new(0, 4) }, nav)
+        contentX, contentY = 10, bodyTop + 62
+        contentSize = UDim2.new(1, -20, 1, -(bodyTop + 70))
     end
 
     for index, page in ipairs(PageNames) do
@@ -2035,6 +2075,9 @@ local function makePanel()
     Content = make("ScrollingFrame", {
         Name = "PageContent",
         Position = UDim2.fromOffset(contentX, contentY),
+        ClipsDescendants = true,
+        Active = true,
+        ScrollBarThickness = 4,
         Size = contentSize,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -2048,35 +2091,24 @@ local function makePanel()
 
     bindDrag(header)
 
-    -- Theme identity motion (non-blocking)
-    if Theme.Style == "Galaxy" or Theme.Style == "Modern" then
+    -- Soft ambient drift (paused while dragging / ReduceMotion) — never blocks input
+    if (Theme.Style == "Galaxy" or Theme.Style == "Modern") and not mobile then
         task.spawn(function()
             local base = Main.Position
             local t0 = tick()
             while Main and Main.Parent and not State.Destroyed do
-                if State.ReduceMotion then break end
-                local t = tick() - t0
-                if Theme.Style == "Galaxy" then
-                    -- soft orbital float
-                    local ox = math.sin(t * 0.55) * 4
-                    local oy = math.cos(t * 0.4) * 3
-                    if not Dragging then
-                        Main.Position = UDim2.new(base.X.Scale, base.X.Offset + ox, base.Y.Scale, base.Y.Offset + oy)
-                    else
-                        base = Main.Position
-                    end
-                    Main.Rotation = math.sin(t * 0.3) * 0.6
+                if State.ReduceMotion or Dragging then
+                    if Dragging then base = Main.Position end
+                    task.wait(0.1)
                 else
-                    -- modern city: subtle parallax tilt
-                    local ox = math.sin(t * 0.35) * 2
-                    if not Dragging then
-                        Main.Position = UDim2.new(base.X.Scale, base.X.Offset + ox, base.Y.Scale, base.Y.Offset)
-                    else
-                        base = Main.Position
-                    end
-                    Main.Rotation = math.sin(t * 0.25) * 0.35
+                    local t = tick() - t0
+                    local amp = Theme.Style == "Galaxy" and 2.5 or 1.2
+                    local ox = math.sin(t * 0.4) * amp
+                    local oy = Theme.Style == "Galaxy" and (math.cos(t * 0.32) * 1.8) or 0
+                    Main.Position = UDim2.new(base.X.Scale, base.X.Offset + ox, base.Y.Scale, base.Y.Offset + oy)
+                    Main.Rotation = 0
+                    task.wait(0.05)
                 end
-                task.wait(0.04)
             end
             if Main then Main.Rotation = 0 end
         end)
