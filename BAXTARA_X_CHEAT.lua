@@ -655,6 +655,7 @@ local PageNames = {
     { Name = "BRUTAL", Icon = "⚡" },
     { Name = "LOCAL", Icon = "⚙" },
     { Name = "TOOLS", Icon = "⚒" },
+    { Name = "SCRIPT", Icon = "⌘" },
     { Name = "APPEARANCE", Icon = "◈" },
     { Name = "ABOUT", Icon = "i" },
 }
@@ -1407,6 +1408,78 @@ local function pageTools()
     end)
 end
 
+local function pageScript()
+    addSectionHeading(Content, "SCRIPT / KERNEL", "Loadstring runner + local chaos tools.")
+    local y = 72
+    local boxHost = make("Frame", {
+        Position = UDim2.fromOffset(8, y),
+        Size = UDim2.new(1, -16, 0, 120),
+        BackgroundColor3 = Theme.Raised,
+        BorderSizePixel = 0,
+        ZIndex = 22,
+    }, Content)
+    corner(boxHost, Theme.Style == "Lego" and 4 or 10)
+    stroke(boxHost, Theme.Accent, Theme.Style == "Lego" and 2 or 1, 0.4)
+    local codeBox = make("TextBox", {
+        Position = UDim2.fromOffset(8, 8),
+        Size = UDim2.new(1, -16, 1, -16),
+        BackgroundTransparency = 1,
+        Text = "-- paste script here\nprint(\"BAXTARA KERNEL\")",
+        TextColor3 = Theme.Text,
+        PlaceholderText = "loadstring source...",
+        PlaceholderColor3 = Theme.Muted,
+        Font = Enum.Font.Code,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true,
+        ClearTextOnFocus = false,
+        MultiLine = true,
+        ZIndex = 23,
+    }, boxHost)
+    y = y + 130
+    addAction(Content, "RUN SCRIPT (loadstring)", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        local src = codeBox.Text or ""
+        local fn, err = loadstring(src)
+        if not fn then
+            notify("Compile error: " .. tostring(err))
+            return
+        end
+        local ok, res = pcall(fn)
+        if ok then notify("Script OK") else notify("Runtime: " .. tostring(res)) end
+    end); y = y + 42
+    addAction(Content, "CLEAR BOX", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        codeBox.Text = ""
+        notify("Cleared")
+    end); y = y + 42
+    addAction(Content, "Quick: print players", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        for _, p in ipairs(Players:GetPlayers()) do print("[BX]", p.Name, p.UserId) end
+        notify("Printed to console F9")
+    end); y = y + 42
+    addAction(Content, "Quick: rejoin server", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        pcall(function() game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer) end)
+    end); y = y + 42
+    addAction(Content, "Quick: FPS unlock attempt", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        pcall(function() setfpscap(999) end)
+        pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+        notify("FPS/quality attempt")
+    end); y = y + 42
+    addAction(Content, "Chaos: lag self graphics", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        pcall(function()
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            game:GetService("Lighting").GlobalShadows = false
+        end)
+        notify("Local lag mode")
+    end); y = y + 42
+    addAction(Content, "Chaos: spam notify", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        for i = 1, 5 do task.delay(i * 0.15, function() notify("KERNEL PULSE " .. i) end) end
+    end); y = y + 42
+    addAction(Content, "Kernel: destroy local tools world", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
+        if Features and Features.ClearLocalWorld then Features.ClearLocalWorld() end
+        notify("Local world wiped")
+    end)
+end
+
 local PageRenderers = {
     OVERVIEW = pageOverview,
     AIM = pageAim,
@@ -1414,6 +1487,7 @@ local PageRenderers = {
     BRUTAL = pageBrutal,
     LOCAL = pageLocal,
     TOOLS = pageTools,
+    SCRIPT = pageScript,
     APPEARANCE = pageAppearance,
     ABOUT = pageAbout,
 }
@@ -1722,7 +1796,7 @@ local function makePanel()
             BorderSizePixel = 0,
             ScrollBarThickness = 0,
             ScrollingDirection = Enum.ScrollingDirection.X,
-            CanvasSize = UDim2.new(0, #PageNames * 125, 0, 0),
+            CanvasSize = UDim2.new(0, #PageNames * 132, 0, 0),
             ZIndex = 23,
         }, Main)
         make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder }, nav)
@@ -1773,7 +1847,7 @@ local function makePanel()
             ScrollBarThickness = 3,
             ScrollBarImageColor3 = Theme.Accent,
             ScrollingDirection = Enum.ScrollingDirection.Y,
-            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 58 + 30),
+            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 64 + 40),
             ZIndex = 23,
         }, Main)
         corner(nav, 18); stroke(nav, Theme.Accent, 1.2, 0.38)
@@ -1791,7 +1865,7 @@ local function makePanel()
             ScrollBarThickness = 3,
             ScrollBarImageColor3 = Theme.Accent,
             ScrollingDirection = Enum.ScrollingDirection.Y,
-            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 56 + 24),
+            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 64 + 40),
             ZIndex = 23,
         }, Main)
         corner(nav, 12); stroke(nav, Theme.Border, 1, 0.5)
@@ -1809,7 +1883,7 @@ local function makePanel()
             BorderSizePixel = 0,
             ScrollBarThickness = 0,
             ScrollingDirection = Enum.ScrollingDirection.X,
-            CanvasSize = UDim2.new(0, #PageNames * 125, 0, 0),
+            CanvasSize = UDim2.new(0, #PageNames * 132, 0, 0),
             ZIndex = 23,
         }, Main)
         make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, nav)
@@ -3279,22 +3353,34 @@ local function doESP()
             math.clamp(State.ESPSat or 0.9, 0, 1),
             math.clamp(State.ESPVal or 1, 0.2, 1)
         )
+        -- theme overrides shape/feel of ESP
+        local style = Theme and Theme.Style or "Modern"
+        if style == "Galaxy" then
+            col = Color3.fromHSV((State.ESPHue or 0.72), 0.85, 1)
+        elseif style == "Lego" then
+            col = Color3.fromRGB(255, 200, 40)
+        elseif style == "Eid" then
+            col = Color3.fromRGB(218, 175, 70)
+        elseif style == "Modern" then
+            col = Color3.fromHSV((State.ESPHue or 0.55), 0.7, 1)
+        end
         if State.ESPBox then
             local h = math.max(math.abs(topS.Y - botS.Y), 14)
             local w = h * 0.68
             local px, py = topS.X - w * 0.5, topS.Y
-            if State.ModernESP then
-                -- corner-style: hide full box, use tracer thickness as cue
+            -- Theme-shaped ESP
+            local useCorners = (style == "Galaxy" or style == "Modern" or State.ModernESP) and not (style == "Lego" or style == "Eid")
+            if useCorners then
                 pack.Box.Visible = false
                 if not pack.Corners then
                     pack.Corners = {}
                     for i = 1, 8 do
                         local ln = Drawing.new("Line")
-                        ln.Thickness = 2
+                        ln.Thickness = (style == "Galaxy") and 1.4 or 2
                         pack.Corners[i] = ln
                     end
                 end
-                local len = math.clamp(w * 0.28, 6, 18)
+                local len = math.clamp(w * (style == "Galaxy" and 0.35 or 0.28), 6, 20)
                 local pts = {
                     {Vector2.new(px, py), Vector2.new(px + len, py)},
                     {Vector2.new(px, py), Vector2.new(px, py + len)},
@@ -3309,13 +3395,22 @@ local function doESP()
                     pack.Corners[i].From = seg[1]
                     pack.Corners[i].To = seg[2]
                     pack.Corners[i].Color = col
+                    pack.Corners[i].Thickness = (style == "Galaxy") and 1.4 or 2
                     pack.Corners[i].Visible = on
                 end
             else
                 if pack.Corners then for _, ln in ipairs(pack.Corners) do ln.Visible = false end end
                 pack.Box.Size = Vector2.new(w, h)
                 pack.Box.Position = Vector2.new(px, py)
-                pack.Box.Color = col; pack.Box.Visible = on
+                pack.Box.Color = col
+                if style == "Lego" then
+                    pack.Box.Thickness = 3.2
+                elseif style == "Eid" then
+                    pack.Box.Thickness = 2.4
+                else
+                    pack.Box.Thickness = 1.6
+                end
+                pack.Box.Visible = on
             end
         else
             pack.Box.Visible = false
