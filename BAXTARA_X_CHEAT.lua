@@ -649,15 +649,15 @@ local function buildPanelDecor(parent)
 end
 
 local PageNames = {
-    { Name = "OVERVIEW", Icon = "⌂" },
-    { Name = "AIM", Icon = "◎" },
-    { Name = "ESP", Icon = "▣" },
-    { Name = "BRUTAL", Icon = "⚡" },
-    { Name = "LOCAL", Icon = "⚙" },
-    { Name = "TOOLS", Icon = "⚒" },
-    { Name = "SCRIPT", Icon = "⌘" },
-    { Name = "APPEARANCE", Icon = "◈" },
-    { Name = "ABOUT", Icon = "i" },
+    { Name = "OVERVIEW", Icon = "HOME" },
+    { Name = "AIM", Icon = "AIM" },
+    { Name = "ESP", Icon = "ESP" },
+    { Name = "BRUTAL", Icon = "BRU" },
+    { Name = "LOCAL", Icon = "LOC" },
+    { Name = "TOOLS", Icon = "TLS" },
+    { Name = "SCRIPT", Icon = "SCR" },
+    { Name = "APPEARANCE", Icon = "THM" },
+    { Name = "ABOUT", Icon = "INF" },
 }
 
 local function addSectionHeading(parent, title, subtitle)
@@ -1492,20 +1492,75 @@ local PageRenderers = {
     ABOUT = pageAbout,
 }
 
+local function drawNavIcon(parent, kind, active, style)
+    -- geometric icons only (no emoji)
+    local host = make("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.42),
+        Size = UDim2.fromOffset(22, 22),
+        BackgroundTransparency = 1,
+        ZIndex = (parent.ZIndex or 9) + 2,
+    }, parent)
+    local accent = active and Theme.Accent or Theme.Muted
+    if kind == "HOME" then
+        local roof = make("Frame", {AnchorPoint=Vector2.new(0.5,0), Position=UDim2.new(0.5,0,0,1), Size=UDim2.fromOffset(16,8), Rotation=45, BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(roof, 2)
+        local body = make("Frame", {Position=UDim2.fromOffset(5,10), Size=UDim2.fromOffset(12,10), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(body, 2)
+    elseif kind == "AIM" then
+        local ring = make("Frame", {AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.5), Size=UDim2.fromOffset(16,16), BackgroundTransparency=1, ZIndex=host.ZIndex}, host)
+        corner(ring, 99); stroke(ring, accent, 1.6, 0.1)
+        local dot = make("Frame", {AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.5), Size=UDim2.fromOffset(4,4), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(dot, 99)
+    elseif kind == "ESP" then
+        local box = make("Frame", {AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.5), Size=UDim2.fromOffset(14,14), BackgroundTransparency=1, ZIndex=host.ZIndex}, host)
+        corner(box, style=="Lego" and 2 or 3); stroke(box, accent, 1.8, 0.05)
+    elseif kind == "BRU" then
+        local bolt = make("Frame", {AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.5), Size=UDim2.fromOffset(4,16), Rotation=20, BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(bolt, 2)
+        local bolt2 = make("Frame", {AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.5), Size=UDim2.fromOffset(12,4), Rotation=20, BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(bolt2, 2)
+    elseif kind == "LOC" then
+        local c = make("Frame", {AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.45), Size=UDim2.fromOffset(12,12), BackgroundTransparency=1, ZIndex=host.ZIndex}, host)
+        corner(c, 99); stroke(c, accent, 1.6, 0.1)
+        local pin = make("Frame", {AnchorPoint=Vector2.new(0.5,0), Position=UDim2.new(0.5,0,0.55,0), Size=UDim2.fromOffset(3,8), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+    elseif kind == "TLS" then
+        local h = make("Frame", {Position=UDim2.fromOffset(3,8), Size=UDim2.fromOffset(16,6), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(h, 2)
+        local v = make("Frame", {Position=UDim2.fromOffset(8,3), Size=UDim2.fromOffset(6,16), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(v, 2)
+    elseif kind == "SCR" then
+        local bar1 = make("Frame", {Position=UDim2.fromOffset(4,5), Size=UDim2.fromOffset(14,3), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        local bar2 = make("Frame", {Position=UDim2.fromOffset(4,10), Size=UDim2.fromOffset(10,3), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        local bar3 = make("Frame", {Position=UDim2.fromOffset(4,15), Size=UDim2.fromOffset(12,3), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+    elseif kind == "THM" then
+        local a = make("Frame", {Position=UDim2.fromOffset(2,6), Size=UDim2.fromOffset(8,10), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(a, 2)
+        local b = make("Frame", {Position=UDim2.fromOffset(12,6), Size=UDim2.fromOffset(8,10), BackgroundColor3=Theme.Accent2 or accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(b, 2)
+    else -- INF
+        local ring = make("Frame", {AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.5), Size=UDim2.fromOffset(16,16), BackgroundTransparency=1, ZIndex=host.ZIndex}, host)
+        corner(ring, 99); stroke(ring, accent, 1.6, 0.1)
+        local i = make("Frame", {AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.55), Size=UDim2.fromOffset(3,7), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        local dot = make("Frame", {AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.fromScale(0.5,0.28), Size=UDim2.fromOffset(3,3), BackgroundColor3=accent, BorderSizePixel=0, ZIndex=host.ZIndex}, host)
+        corner(dot, 99)
+    end
+    return host
+end
+
 local function navButton(parent, item, index, mobile, horizontal)
     local page = item.Name
     local active = State.Page == page
     local style = Theme.Style
-    local width, height
+    local width
     if horizontal then
-        width = UDim2.new(0, style == "Lego" and 112 or 108, 0, 38)
-        height = UDim2.fromOffset(style == "Lego" and 112 or 108, 38)
+        width = UDim2.new(0, style == "Lego" and 112 or 100, 0, 40)
     elseif style == "Galaxy" then
-        width = UDim2.new(1, -12, 0, 61); height = UDim2.fromOffset(76, 61)
+        width = UDim2.new(1, -10, 0, 58)
     elseif style == "Eid" then
-        width = UDim2.new(1, -12, 0, 48); height = UDim2.fromOffset(86, 48)
+        width = UDim2.new(1, -10, 0, 50)
     else
-        width = UDim2.new(1, -10, 0, 49); height = UDim2.fromOffset(54, 49)
+        width = UDim2.new(1, -8, 0, 52)
     end
     local button = make("TextButton", {
         Size = width,
@@ -1516,83 +1571,52 @@ local function navButton(parent, item, index, mobile, horizontal)
         LayoutOrder = index,
         ZIndex = 9,
     }, parent)
-    if style == "Galaxy" then
-        corner(button, 99)
-        stroke(button, active and Theme.Accent2 or Theme.Border, active and 1.6 or 1, active and 0.1 or 0.74)
-        local center = mobile and horizontal
-        local planet = make("Frame", {
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = center and UDim2.new(0, 17, 0.5, 0) or UDim2.new(0.5, 0, 0.37, 0),
-            Size = UDim2.fromOffset(active and 24 or 20, active and 24 or 20),
-            BackgroundColor3 = active and Theme.Accent or Theme.Element,
-            BorderSizePixel = 0,
-            ZIndex = 10,
-        }, button)
-        corner(planet, 99); gradient(planet, Theme.Accent2, Theme.Accent, 35)
-        if center then
-            label(button, page, 8, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
-                UDim2.fromOffset(34, 0), UDim2.new(1, -38, 1, 0))
-        else
-            label(button, item.Icon, 10, Theme.Text, Enum.Font.GothamBold,
-                UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.76), Enum.TextXAlignment.Center)
-            label(button, page, 7, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
-                UDim2.new(0, 1, 1, -18), UDim2.new(1, -2, 0, 12), Enum.TextXAlignment.Center)
-        end
-    elseif style == "Lego" then
-        corner(button, 3)
-        stroke(button, Color3.fromRGB(6, 11, 20), 2.2, 0.02)
-        local blockColors = {
-            Color3.fromRGB(208, 48, 43), Color3.fromRGB(34, 108, 211),
-            Color3.fromRGB(224, 164, 28), Color3.fromRGB(38, 146, 69),
-        }
-        button.BackgroundColor3 = active and Theme.Accent or blockColors[(index - 1) % #blockColors + 1]
-        for i = 1, 3 do
-            local stud = make("Frame", {
-                Position = UDim2.fromOffset(7 + (i - 1) * 18, 3),
-                Size = UDim2.fromOffset(12, 7),
-                BackgroundColor3 = active and Color3.fromRGB(255, 226, 112) or Color3.fromRGB(255, 255, 255),
-                BackgroundTransparency = active and 0.06 or 0.35,
-                BorderSizePixel = 0,
-                ZIndex = 11,
-            }, button)
-            corner(stud, 3)
-        end
-        label(button, page, 8, Theme.Text, Enum.Font.GothamBlack,
-            UDim2.new(0, 6, 0, 13), UDim2.new(1, -12, 1, -13), Enum.TextXAlignment.Center)
-    elseif style == "Eid" then
-        corner(button, 13)
-        stroke(button, active and Theme.Accent or Theme.Border, active and 1.6 or 1, active and 0.08 or 0.58)
-        label(button, "◆", 9, Theme.Accent, Enum.Font.GothamBold,
-            UDim2.new(0, 7, 0, 0), UDim2.fromOffset(20, 48), Enum.TextXAlignment.Center)
-        label(button, page, 8, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
-            UDim2.fromOffset(29, 0), UDim2.new(1, -33, 1, 0))
-    else
-        corner(button, 8)
-        stroke(button, active and Theme.Border or Theme.Surface, 1, active and 0.38 or 1)
-        if active then
-            make("Frame", {
-                Position = UDim2.fromOffset(0, 8),
-                Size = UDim2.new(0, 3, 1, -16),
-                BackgroundColor3 = Theme.Accent,
-                BorderSizePixel = 0,
-                ZIndex = 11,
-            }, button)
-        end
-        if horizontal then
-            label(button, item.Icon, 14, active and Theme.Accent or Theme.Muted, Enum.Font.GothamBold,
-                UDim2.fromOffset(8, 0), UDim2.fromOffset(24, 38), Enum.TextXAlignment.Center)
-            label(button, page, 8, active and Theme.Text or Theme.Muted, Enum.Font.GothamSemibold,
-                UDim2.fromOffset(34, 0), UDim2.new(1, -38, 1, 0))
-        else
-            -- Desktop Modern uses an icon-only rail; labels live in the page heading.
-            label(button, item.Icon, 17, active and Theme.Accent or Theme.Muted, Enum.Font.GothamBold,
-                UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), Enum.TextXAlignment.Center)
-        end
+    local radius = style == "Lego" and 4 or (style == "Galaxy" and 14 or 10)
+    corner(button, radius)
+    if active then
+        stroke(button, Theme.Accent, style == "Lego" and 2 or 1.2, 0.15)
     end
-
+    drawNavIcon(button, item.Icon, active, style)
+    -- small caption under icon for vertical rails
+    if not horizontal then
+        label(button, page:sub(1, 4), 7, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
+            UDim2.new(0, 2, 1, -14), UDim2.new(1, -4, 0, 12), Enum.TextXAlignment.Center)
+    else
+        label(button, page:sub(1, 6), 8, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
+            UDim2.fromOffset(28, 0), UDim2.new(1, -32, 1, 0))
+    end
+    -- press animation
+    local function pressIn()
+        playTween(button, 0.08, {BackgroundColor3 = Theme.Accent}, Enum.EasingStyle.Quad)
+        local sc = button:FindFirstChildOfClass("UIScale") or make("UIScale", {Scale = 1}, button)
+        playTween(sc, 0.08, {Scale = 0.92}, Enum.EasingStyle.Quad)
+    end
+    local function pressOut()
+        playTween(button, 0.15, {BackgroundColor3 = active and Theme.Raised or Theme.Surface}, Enum.EasingStyle.Quad)
+        local sc = button:FindFirstChildOfClass("UIScale")
+        if sc then playTween(sc, 0.15, {Scale = 1}, Enum.EasingStyle.Back) end
+    end
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            pressIn()
+        end
+    end)
+    button.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            pressOut()
+        end
+    end)
     button.Activated:Connect(function()
         State.Page = page
         renderUI()
+        -- keep panel open after rebuild
+        task.defer(function()
+            if Main and not Main.Visible then
+                State.Opening = false
+                State.PanelVisible = true
+                Main.Visible = true
+            end
+        end)
     end)
     return button
 end
@@ -1796,7 +1820,7 @@ local function makePanel()
             BorderSizePixel = 0,
             ScrollBarThickness = 0,
             ScrollingDirection = Enum.ScrollingDirection.X,
-            CanvasSize = UDim2.new(0, #PageNames * 132, 0, 0),
+            CanvasSize = UDim2.new(0, #PageNames * 140, 0, 0),
             ZIndex = 23,
         }, Main)
         make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder }, nav)
@@ -1844,10 +1868,14 @@ local function makePanel()
             Size = UDim2.new(0, 112, 1, -(bodyTop + 14)),
             BackgroundColor3 = Theme.Surface,
             BorderSizePixel = 0,
-            ScrollBarThickness = 3,
+            ScrollBarThickness = 4,
             ScrollBarImageColor3 = Theme.Accent,
             ScrollingDirection = Enum.ScrollingDirection.Y,
-            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 64 + 40),
+            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 72 + 80),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            Active = true,
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            Active = true,
             ZIndex = 23,
         }, Main)
         corner(nav, 18); stroke(nav, Theme.Accent, 1.2, 0.38)
@@ -1862,10 +1890,14 @@ local function makePanel()
             Size = UDim2.new(0, 100, 1, -(bodyTop + 14)),
             BackgroundColor3 = Theme.Surface,
             BorderSizePixel = 0,
-            ScrollBarThickness = 3,
+            ScrollBarThickness = 4,
             ScrollBarImageColor3 = Theme.Accent,
             ScrollingDirection = Enum.ScrollingDirection.Y,
-            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 64 + 40),
+            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 72 + 80),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            Active = true,
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            Active = true,
             ZIndex = 23,
         }, Main)
         corner(nav, 12); stroke(nav, Theme.Border, 1, 0.5)
@@ -1883,7 +1915,7 @@ local function makePanel()
             BorderSizePixel = 0,
             ScrollBarThickness = 0,
             ScrollingDirection = Enum.ScrollingDirection.X,
-            CanvasSize = UDim2.new(0, #PageNames * 132, 0, 0),
+            CanvasSize = UDim2.new(0, #PageNames * 140, 0, 0),
             ZIndex = 23,
         }, Main)
         make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, nav)
@@ -2202,7 +2234,44 @@ renderUI = function()
     makePanel()
     Launcher = makeLauncher()
     local renderer = PageRenderers[State.Page] or pageOverview
-    renderer()
+    local okR, errR = pcall(renderer)
+    if not okR then warn("[BAXTARA] page error", State.Page, errR) end
+    -- stagger reveal: children appear one by one
+    if Content and Content.Parent then
+        local kids = {}
+        for _, ch in ipairs(Content:GetChildren()) do
+            if ch:IsA("GuiObject") and not ch:IsA("UIListLayout") and not ch:IsA("UIPadding") then
+                table.insert(kids, ch)
+            end
+        end
+        for i, ch in ipairs(kids) do
+            local targetT = ch.BackgroundTransparency
+            local hasBg = ch.BackgroundTransparency < 1
+            ch.BackgroundTransparency = hasBg and 1 or ch.BackgroundTransparency
+            if ch:IsA("TextLabel") or ch:IsA("TextButton") then
+                ch.TextTransparency = 1
+            end
+            -- offset slightly
+            local orig = ch.Position
+            ch.Position = UDim2.new(orig.X.Scale, orig.X.Offset, orig.Y.Scale, orig.Y.Offset + 10)
+            task.delay(0.04 * (i - 1), function()
+                if not ch.Parent then return end
+                if hasBg then playTween(ch, 0.22, {BackgroundTransparency = targetT}, Enum.EasingStyle.Quad) end
+                playTween(ch, 0.22, {Position = orig}, Enum.EasingStyle.Quad)
+                if ch:IsA("TextLabel") or ch:IsA("TextButton") then
+                    playTween(ch, 0.22, {TextTransparency = 0}, Enum.EasingStyle.Quad)
+                end
+                -- also fade labels inside
+                for _, d in ipairs(ch:GetDescendants()) do
+                    if d:IsA("TextLabel") or d:IsA("TextButton") then
+                        local tt = d.TextTransparency
+                        d.TextTransparency = 1
+                        playTween(d, 0.2, {TextTransparency = tt}, Enum.EasingStyle.Quad)
+                    end
+                end
+            end)
+        end
+    end
 end
 
 
