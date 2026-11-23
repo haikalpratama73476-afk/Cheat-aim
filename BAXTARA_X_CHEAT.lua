@@ -1571,19 +1571,50 @@ local function navButton(parent, item, index, mobile, horizontal)
         LayoutOrder = index,
         ZIndex = 9,
     }, parent)
-    local radius = style == "Lego" and 4 or (style == "Galaxy" and 14 or 10)
+    local radius = style == "Lego" and 3 or (style == "Galaxy" and 16 or 8)
     corner(button, radius)
-    if active then
-        stroke(button, Theme.Accent, style == "Lego" and 2 or 1.2, 0.15)
+    if style == "Lego" then
+        local brickColors = {
+            Color3.fromRGB(208, 48, 43), Color3.fromRGB(34, 108, 211),
+            Color3.fromRGB(224, 164, 28), Color3.fromRGB(38, 146, 69),
+            Color3.fromRGB(255, 120, 40), Color3.fromRGB(160, 80, 200),
+            Color3.fromRGB(40, 180, 160), Color3.fromRGB(240, 240, 240),
+            Color3.fromRGB(30, 30, 40),
+        }
+        button.BackgroundColor3 = active and Color3.fromRGB(255, 220, 80) or brickColors[((index - 1) % #brickColors) + 1]
+        button.Size = horizontal and UDim2.fromOffset(108, 50) or button.Size
+        stroke(button, Color3.fromRGB(10, 14, 22), 2.2, 0.05)
+        -- studs
+        for s = 1, 3 do
+            local stud = make("Frame", {
+                Position = UDim2.fromOffset(10 + (s - 1) * 28, 4),
+                Size = UDim2.fromOffset(14, 8),
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                BackgroundTransparency = active and 0.15 or 0.45,
+                BorderSizePixel = 0,
+                ZIndex = 12,
+            }, button)
+            corner(stud, 3)
+        end
+    elseif active then
+        stroke(button, Theme.Accent, 1.2, 0.15)
     end
-    drawNavIcon(button, item.Icon, active, style)
-    -- small caption under icon for vertical rails
-    if not horizontal then
-        label(button, page:sub(1, 4), 7, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
-            UDim2.new(0, 2, 1, -14), UDim2.new(1, -4, 0, 12), Enum.TextXAlignment.Center)
+    if style ~= "Lego" then
+        drawNavIcon(button, item.Icon, active, style)
     else
-        label(button, page:sub(1, 6), 8, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
-            UDim2.fromOffset(28, 0), UDim2.new(1, -32, 1, 0))
+        -- LEGO text logo style
+        label(button, item.Icon, 10, Color3.fromRGB(15, 18, 28), Enum.Font.GothamBlack,
+            UDim2.fromOffset(0, 16), UDim2.new(1, 0, 0, 28), Enum.TextXAlignment.Center)
+    end
+    -- caption (skip LEGO — icon text already on brick)
+    if style ~= "Lego" then
+        if not horizontal then
+            label(button, page:sub(1, 4), 7, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
+                UDim2.new(0, 2, 1, -14), UDim2.new(1, -4, 0, 12), Enum.TextXAlignment.Center)
+        else
+            label(button, page:sub(1, 6), 8, active and Theme.Text or Theme.Muted, Enum.Font.GothamBold,
+                UDim2.fromOffset(28, 0), UDim2.new(1, -32, 1, 0))
+        end
     end
     -- press animation
     local function pressIn()
@@ -1607,9 +1638,70 @@ local function navButton(parent, item, index, mobile, horizontal)
         end
     end)
     button.Activated:Connect(function()
+        -- Lego brick burst
+        if Theme.Style == "Lego" and Main then
+            local colors = {
+                Color3.fromRGB(208, 48, 43), Color3.fromRGB(34, 108, 211),
+                Color3.fromRGB(224, 164, 28), Color3.fromRGB(38, 146, 69),
+            }
+            for i = 1, 6 do
+                local brick = Instance.new("Frame")
+                brick.Size = UDim2.fromOffset(math.random(10, 18), math.random(8, 12))
+                brick.BackgroundColor3 = colors[(i % #colors) + 1]
+                brick.BorderSizePixel = 0
+                brick.ZIndex = 80
+                brick.AnchorPoint = Vector2.new(0.5, 0.5)
+                local abs = button.AbsolutePosition
+                local asz = button.AbsoluteSize
+                brick.Position = UDim2.fromOffset(abs.X + asz.X/2, abs.Y + asz.Y/2)
+                brick.Parent = ScreenGui
+                Instance.new("UICorner", brick).CornerRadius = UDim.new(0, 2)
+                -- stud
+                local stud = Instance.new("Frame")
+                stud.Size = UDim2.fromOffset(6, 4)
+                stud.Position = UDim2.fromOffset(4, 1)
+                stud.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                stud.BackgroundTransparency = 0.4
+                stud.BorderSizePixel = 0
+                stud.Parent = brick
+                TweenService:Create(brick, TweenInfo.new(0.45, Enum.EasingStyle.Quad), {
+                    Position = UDim2.fromOffset(abs.X + asz.X/2 + math.random(-70, 70), abs.Y + asz.Y/2 + math.random(-50, 30)),
+                    BackgroundTransparency = 1,
+                    Rotation = math.random(-40, 40),
+                }):Play()
+                task.delay(0.5, function() if brick then brick:Destroy() end end)
+            end
+        elseif Theme.Style == "Galaxy" and Main then
+            -- star flash
+            local star = Instance.new("Frame")
+            star.Size = UDim2.fromOffset(8, 8)
+            star.AnchorPoint = Vector2.new(0.5, 0.5)
+            local abs = button.AbsolutePosition
+            local asz = button.AbsoluteSize
+            star.Position = UDim2.fromOffset(abs.X + asz.X/2, abs.Y + asz.Y/2)
+            star.BackgroundColor3 = Theme.Accent2
+            star.BorderSizePixel = 0
+            star.ZIndex = 80
+            star.Parent = ScreenGui
+            Instance.new("UICorner", star).CornerRadius = UDim.new(1, 0)
+            TweenService:Create(star, TweenInfo.new(0.35), {Size = UDim2.fromOffset(28, 28), BackgroundTransparency = 1}):Play()
+            task.delay(0.4, function() if star then star:Destroy() end end)
+        elseif Theme.Style == "Modern" then
+            -- scan line
+            if Main then
+                local scan = Instance.new("Frame")
+                scan.Size = UDim2.new(1, 0, 0, 2)
+                scan.Position = UDim2.fromOffset(0, 0)
+                scan.BackgroundColor3 = Theme.Accent
+                scan.BorderSizePixel = 0
+                scan.ZIndex = 70
+                scan.Parent = Main
+                TweenService:Create(scan, TweenInfo.new(0.28, Enum.EasingStyle.Quad), {Position = UDim2.new(0, 0, 1, -2)}):Play()
+                task.delay(0.3, function() if scan then scan:Destroy() end end)
+            end
+        end
         State.Page = page
         renderUI()
-        -- keep panel open after rebuild
         task.defer(function()
             if Main and not Main.Visible then
                 State.Opening = false
@@ -1811,54 +1903,67 @@ local function makePanel()
     local bodyTop = headerHeight + 10
     local nav, navHorizontal, contentX, contentY, contentSize
     if Theme.Style == "Lego" then
-        -- Full-width row of tactile brick tabs, like a physical LEGO control board.
+        -- LEGO brick control strip — swipe horizontally
         navHorizontal = true
         nav = make("ScrollingFrame", {
-            Position = UDim2.fromOffset(10, bodyTop),
-            Size = UDim2.new(1, -20, 0, 49),
-            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(8, bodyTop),
+            Size = UDim2.new(1, -16, 0, 62),
+            BackgroundColor3 = Color3.fromRGB(20, 28, 40),
+            BackgroundTransparency = 0.15,
             BorderSizePixel = 0,
-            ScrollBarThickness = 0,
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = Color3.fromRGB(255, 200, 40),
             ScrollingDirection = Enum.ScrollingDirection.X,
-            CanvasSize = UDim2.new(0, #PageNames * 140, 0, 0),
+            CanvasSize = UDim2.new(0, #PageNames * 118, 0, 0),
+            Active = true,
             ZIndex = 23,
         }, Main)
-        make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder }, nav)
-        contentX, contentY = 12, bodyTop + 56
-        contentSize = UDim2.new(1, -24, 1, -(bodyTop + 66))
+        corner(nav, 4)
+        make("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, nav)
+        make("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingTop = UDim.new(0, 6) }, nav)
+        contentX, contentY = 12, bodyTop + 72
+        contentSize = UDim2.new(1, -24, 1, -(bodyTop + 82))
     elseif Theme.Style == "Galaxy" and not mobile then
         navHorizontal = false
-        nav = make("Frame", {
-            Position = UDim2.fromOffset(10, bodyTop + 2),
-            Size = UDim2.new(0, 82, 1, -(bodyTop + 14)),
+        nav = make("ScrollingFrame", {
+            Position = UDim2.fromOffset(8, bodyTop + 2),
+            Size = UDim2.new(0, 90, 1, -(bodyTop + 14)),
             BackgroundColor3 = Theme.Surface,
-            BackgroundTransparency = 0.18,
+            BackgroundTransparency = 0.22,
             BorderSizePixel = 0,
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = Theme.Accent2,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 72 + 100),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            Active = true,
             ZIndex = 23,
         }, Main)
-        corner(nav, 30); stroke(nav, Theme.Border, 1.2, 0.38)
-        make("UIListLayout", { Padding = UDim.new(0, 7), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, nav)
-        make("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5) }, nav)
-        label(nav, "ORBIT", 7, Theme.Accent2, Enum.Font.GothamBlack,
-            UDim2.new(0, 0, 1, -21), UDim2.new(1, 0, 0, 14), Enum.TextXAlignment.Center)
-        contentX, contentY = 102, bodyTop + 3
-        contentSize = UDim2.new(1, -114, 1, -(bodyTop + 14))
+        corner(nav, 22); stroke(nav, Theme.Accent2, 1.2, 0.35)
+        make("UIListLayout", { Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, nav)
+        make("UIPadding", { PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 16), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }, nav)
+        contentX, contentY = 104, bodyTop + 3
+        contentSize = UDim2.new(1, -116, 1, -(bodyTop + 14))
     elseif Theme.Style == "Modern" and not mobile then
         navHorizontal = false
-        nav = make("Frame", {
-            Position = UDim2.fromOffset(12, bodyTop + 1),
-            Size = UDim2.new(0, 58, 1, -(bodyTop + 13)),
+        nav = make("ScrollingFrame", {
+            Position = UDim2.fromOffset(10, bodyTop + 2),
+            Size = UDim2.new(0, 72, 1, -(bodyTop + 14)),
             BackgroundColor3 = Theme.Surface,
             BorderSizePixel = 0,
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = Theme.Accent,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            CanvasSize = UDim2.new(0, 0, 0, #PageNames * 72 + 100),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            Active = true,
             ZIndex = 23,
         }, Main)
-        corner(nav, 11); stroke(nav, Theme.Border, 1, 0.78)
-        make("UIListLayout", { Padding = UDim.new(0, 7), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, nav)
-        make("UIPadding", { PaddingTop = UDim.new(0, 9) }, nav)
-        label(nav, "BX", 9, Theme.Accent, Enum.Font.GothamBlack,
-            UDim2.new(0, 0, 1, -22), UDim2.new(1, 0, 0, 14), Enum.TextXAlignment.Center)
-        contentX, contentY = 82, bodyTop + 1
-        contentSize = UDim2.new(1, -94, 1, -(bodyTop + 13))
+        corner(nav, 8); stroke(nav, Theme.Border, 1, 0.55)
+        make("UIListLayout", { Padding = UDim.new(0, 6), HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }, nav)
+        make("UIPadding", { PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 16), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4) }, nav)
+        contentX, contentY = 88, bodyTop + 2
+        contentSize = UDim2.new(1, -100, 1, -(bodyTop + 14))
     elseif Theme.Style == "Eid" and not mobile then
         -- Eid uses a right-hand ornamental menu, deliberately unlike Modern's left rail.
         navHorizontal = false
@@ -1942,6 +2047,40 @@ local function makePanel()
     }, Main)
 
     bindDrag(header)
+
+    -- Theme identity motion (non-blocking)
+    if Theme.Style == "Galaxy" or Theme.Style == "Modern" then
+        task.spawn(function()
+            local base = Main.Position
+            local t0 = tick()
+            while Main and Main.Parent and not State.Destroyed do
+                if State.ReduceMotion then break end
+                local t = tick() - t0
+                if Theme.Style == "Galaxy" then
+                    -- soft orbital float
+                    local ox = math.sin(t * 0.55) * 4
+                    local oy = math.cos(t * 0.4) * 3
+                    if not Dragging then
+                        Main.Position = UDim2.new(base.X.Scale, base.X.Offset + ox, base.Y.Scale, base.Y.Offset + oy)
+                    else
+                        base = Main.Position
+                    end
+                    Main.Rotation = math.sin(t * 0.3) * 0.6
+                else
+                    -- modern city: subtle parallax tilt
+                    local ox = math.sin(t * 0.35) * 2
+                    if not Dragging then
+                        Main.Position = UDim2.new(base.X.Scale, base.X.Offset + ox, base.Y.Scale, base.Y.Offset)
+                    else
+                        base = Main.Position
+                    end
+                    Main.Rotation = math.sin(t * 0.25) * 0.35
+                end
+                task.wait(0.04)
+            end
+            if Main then Main.Rotation = 0 end
+        end)
+    end
     -- panel scale
     local scaleObj = Main:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
     scaleObj.Name = "BX_Scale"
