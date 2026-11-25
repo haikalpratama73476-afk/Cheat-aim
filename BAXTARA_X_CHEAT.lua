@@ -1,5 +1,5 @@
 --[[
-BAXTARA X — FOUR WORLDS UI / v7.0
+BAXTARA X GPT — FOUR WORLDS UI / v8.0
 
 LOCAL INTERFACE ONLY.
 - Runs as a Roblox LocalScript in StarterPlayerScripts.
@@ -186,6 +186,8 @@ local State = {
     ToolsSkyLogo = false,
     ToolsMapTag = false,
     ToolsCharBX = false,
+    GPTStatus = "READY",
+    LocalPerfMode = true,
 }
 
 
@@ -918,6 +920,20 @@ local function addToggle(parent, titleText, desc, key, y)
     corner(knob, Theme.Style == "Lego" and 3 or 99)
     local hit = make("TextButton", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 13 }, track)
     hit.Activated:Connect(function()
+        local blocked = {
+            AimEnabled=true, SilentAim=true, AntiMiss=true, AimLock=true,
+            AimDrag=true, ESPEnabled=true, ESPBox=true, ESPName=true,
+            ESPHealth=true, ESPDist=true, ESPTracer=true, ESPSkeleton=true,
+            ESPNPC=true, Fly=true, SpeedHack=true, InfJump=true, Noclip=true,
+            GodMode=true, GhostMode=true, Hitbox=true, SpinBot=true,
+            FlyKillAll=true, AntiCD=true, InfAmmo=true, AttackSpeed=true,
+            FreezeOthers=true, HitboxHead=true,
+        }
+        if blocked[key] then
+            State[key] = false
+            notify("Gameplay manipulation is disabled in this local visual build", Theme.Danger)
+            return
+        end
         State[key] = not State[key]
         playTween(track, 0.16, { BackgroundColor3 = State[key] and Theme.Accent or Theme.Off })
         playTween(knob, 0.18, {
@@ -1409,75 +1425,43 @@ local function pageTools()
 end
 
 local function pageScript()
-    addSectionHeading(Content, "SCRIPT / KERNEL", "Loadstring runner + local chaos tools.")
-    local y = 72
-    local boxHost = make("Frame", {
-        Position = UDim2.fromOffset(8, y),
-        Size = UDim2.new(1, -16, 0, 120),
-        BackgroundColor3 = Theme.Raised,
-        BorderSizePixel = 0,
-        ZIndex = 22,
-    }, Content)
-    corner(boxHost, Theme.Style == "Lego" and 4 or 10)
-    stroke(boxHost, Theme.Accent, Theme.Style == "Lego" and 2 or 1, 0.4)
-    local codeBox = make("TextBox", {
-        Position = UDim2.fromOffset(8, 8),
-        Size = UDim2.new(1, -16, 1, -16),
-        BackgroundTransparency = 1,
-        Text = "-- paste script here\nprint(\"BAXTARA KERNEL\")",
-        TextColor3 = Theme.Text,
-        PlaceholderText = "loadstring source...",
-        PlaceholderColor3 = Theme.Muted,
-        Font = Enum.Font.Code,
-        TextSize = 11,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Top,
-        TextWrapped = true,
-        ClearTextOnFocus = false,
-        MultiLine = true,
-        ZIndex = 23,
-    }, boxHost)
-    y = y + 130
-    addAction(Content, "RUN SCRIPT (loadstring)", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        local src = codeBox.Text or ""
-        local fn, err = loadstring(src)
-        if not fn then
-            notify("Compile error: " .. tostring(err))
-            return
-        end
-        local ok, res = pcall(fn)
-        if ok then notify("Script OK") else notify("Runtime: " .. tostring(res)) end
-    end); y = y + 42
-    addAction(Content, "CLEAR BOX", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        codeBox.Text = ""
-        notify("Cleared")
-    end); y = y + 42
-    addAction(Content, "Quick: print players", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        for _, p in ipairs(Players:GetPlayers()) do print("[BX]", p.Name, p.UserId) end
-        notify("Printed to console F9")
-    end); y = y + 42
-    addAction(Content, "Quick: rejoin server", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        pcall(function() game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer) end)
-    end); y = y + 42
-    addAction(Content, "Quick: FPS unlock attempt", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        pcall(function() setfpscap(999) end)
-        pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
-        notify("FPS/quality attempt")
-    end); y = y + 42
-    addAction(Content, "Chaos: lag self graphics", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        pcall(function()
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-            game:GetService("Lighting").GlobalShadows = false
-        end)
-        notify("Local lag mode")
-    end); y = y + 42
-    addAction(Content, "Chaos: spam notify", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        for i = 1, 5 do task.delay(i * 0.15, function() notify("KERNEL PULSE " .. i) end) end
-    end); y = y + 42
-    addAction(Content, "Kernel: destroy local tools world", UDim2.fromOffset(12, y), UDim2.new(1, -24, 0, 34), function()
-        if Features and Features.ClearLocalWorld then Features.ClearLocalWorld() end
-        notify("Local world wiped")
-    end)
+    clearContent(); setupContentList()
+    addSectionHeading(Content, "BAXTARA X GPT", "LOCAL COMMAND CENTER / VISUAL ASSISTANT")
+    local hero = makeCard(Content, "GPT CORE // ONLINE", "A clean control surface for local visual settings and performance.", 132, 3)
+    label(hero, "BX", 30, Theme.Accent, Enum.Font.GothamBlack,
+        UDim2.fromOffset(14, 54), UDim2.fromOffset(54, 46))
+    label(hero, "BAXTARA X GPT", 15, Theme.Text, Enum.Font.GothamBlack,
+        UDim2.fromOffset(78, 56), UDim2.new(1, -90, 0, 22))
+    label(hero, "LOCAL UI ENGINE  •  SESSION READY", 9, Theme.Muted, Enum.Font.GothamBold,
+        UDim2.fromOffset(79, 82), UDim2.new(1, -90, 0, 18))
+    local status = makeCard(Content, "QUICK COMMANDS", "These commands affect only this client-side interface.", 174, 3)
+    addAction(status, "OPTIMIZE LOCAL VISUALS", UDim2.fromOffset(12, 58),
+        UDim2.new(1, -24, 0, 34), function()
+            State.AntiLag = true
+            State.ReduceMotion = true
+            State.StarParticles = false
+            State.Ambient = false
+            pcall(function()
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level03
+                game:GetService("Lighting").GlobalShadows = false
+            end)
+            notify("Local visual performance profile applied", Theme.Accent2)
+        end, "primary")
+    addAction(status, "RESTORE VISUALS", UDim2.fromOffset(12, 100),
+        UDim2.new(1, -24, 0, 34), function()
+            State.AntiLag = false
+            State.ReduceMotion = false
+            State.StarParticles = true
+            State.Ambient = true
+            notify("Local visual profile restored")
+        end, "secondary")
+    local info = makeCard(Content, "GPT MODULES", "Available local modules.", 146, 2)
+    label(info, "01  THEME DESIGN     Galaxy / Modern / LEGO / Serenity", 10, Theme.Text,
+        UDim2.fromOffset(12, 58), UDim2.new(1, -24, 0, 20))
+    label(info, "02  SKY BRANDING     BAXTARA X GPT environment", 10, Theme.Text,
+        UDim2.fromOffset(12, 84), UDim2.new(1, -24, 0, 20))
+    label(info, "03  PERFORMANCE      Client-side rendering controls", 10, Theme.Text,
+        UDim2.fromOffset(12, 110), UDim2.new(1, -24, 0, 20))
 end
 
 local PageRenderers = {
@@ -2849,7 +2833,7 @@ local function showKeyGate()
     title.Size = UDim2.new(1, -40, 0, 28)
     title.Position = UDim2.new(0, 20, 0.28, 0)
     title.BackgroundTransparency = 1
-    title.Text = "BAXTARA X CHEAT"
+    title.Text = "BAXTARA X GPT"
     title.TextColor3 = Color3.fromRGB(0, 230, 200)
     title.Font = Enum.Font.GothamBlack
     title.TextSize = 22
@@ -3727,6 +3711,16 @@ end
 local LastFly, LastSpeed, LastNoclip, LastJump, LastGhost, LastSky = false, false, false, false, false, false
 featConn(RunService.RenderStepped:Connect(function()
     if State.Destroyed then return end
+    -- Legacy gameplay controls remain represented in the layout, but are
+    -- locked off in this client-side visual build.
+    for _, key in ipairs({
+        "AimEnabled","SilentAim","AntiMiss","AimLock","AimDrag",
+        "ESPEnabled","Fly","SpeedHack","InfJump","Noclip","GodMode",
+        "GhostMode","Hitbox","SpinBot","FlyKillAll","AntiCD","InfAmmo",
+        "AttackSpeed","FreezeOthers","HitboxHead"
+    }) do
+        State[key] = false
+    end
     Camera = Workspace.CurrentCamera
     -- side-effect sync from UI toggles
     if State.Fly ~= LastFly then LastFly = State.Fly; Features.SetFly(State.Fly) end
@@ -3877,7 +3871,10 @@ featConn(RunService.RenderStepped:Connect(function()
         end
     end
     if State.AntiLag then
-        pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+        pcall(function()
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level03
+            game:GetService("Lighting").GlobalShadows = false
+        end)
     end
 end))
 
@@ -3913,14 +3910,14 @@ function Features.BuildLocalWorld()
     end)
 
     -- giant sky logo discs
-    for i = 1, 6 do
-        local ang = (i / 6) * math.pi * 2
+    for i = 1, 12 do
+        local ang = (i / 12) * math.pi * 2
         local p = Instance.new("Part")
         p.Anchored = true; p.CanCollide = false
-        p.Size = Vector3.new(60, 60, 2)
+        p.Size = Vector3.new(76, 76, 2)
         p.Color = Color3.fromRGB(0, 30, 40)
         p.Material = Enum.Material.Neon
-        p.CFrame = CFrame.new(base + Vector3.new(math.cos(ang) * 160, 110, math.sin(ang) * 160))
+        p.CFrame = CFrame.new(base + Vector3.new(math.cos(ang) * 210, 125, math.sin(ang) * 210))
             * CFrame.Angles(0, ang + math.pi/2, 0)
         p.Parent = folder
         local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front; sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud; sg.PixelsPerStud = 12; sg.Parent = p
@@ -3936,8 +3933,8 @@ function Features.BuildLocalWorld()
     end
 
     -- ground logo blocks scattered
-    for i = 1, 10 do
-        local ang = (i / 10) * math.pi * 2
+    for i = 1, 16 do
+        local ang = (i / 16) * math.pi * 2
         local blk = Instance.new("Part")
         blk.Anchored = true; blk.CanCollide = false
         blk.Size = Vector3.new(12, 1.5, 12)
@@ -3982,7 +3979,7 @@ function Features.BuildLocalWorld()
     local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front; sg.Parent = wallF
     local f = Instance.new("Frame"); f.Size = UDim2.fromScale(1,1); f.BackgroundColor3 = Color3.fromRGB(10, 20, 28); f.Parent = sg
     local logo = Instance.new("TextLabel"); logo.Size = UDim2.new(1,-40,0,80); logo.Position = UDim2.new(0,20,0.35,0)
-    logo.BackgroundTransparency = 1; logo.Text = "BAXTARA X CHEAT"; logo.TextColor3 = Color3.fromRGB(0,255,210)
+    logo.BackgroundTransparency = 1; logo.Text = "BAXTARA X GPT"; logo.TextColor3 = Color3.fromRGB(0,255,210)
     logo.Font = Enum.Font.GothamBlack; logo.TextScaled = true; logo.Parent = f
     local sub = Instance.new("TextLabel"); sub.Size = UDim2.new(1,-40,0,30); sub.Position = UDim2.new(0,20,0.55,0)
     sub.BackgroundTransparency = 1; sub.Text = "HEADQUARTERS"; sub.TextColor3 = Color3.fromRGB(120,200,180)
